@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <algorithm>
 #include "hash.hpp"
 
@@ -19,7 +20,7 @@ template <detail::xxhash_cpt T>
 struct hash_result<T>
 {
 	template <std::integral I>
-	constexpr hash_result(I val) noexcept : m_val(static_cast<T::value_type>(val)) {}
+	constexpr hash_result(I val) noexcept : m_val(static_cast<typename T::value_type>(val)) {}
 	constexpr ~hash_result() noexcept {}
 
 	friend constexpr bool operator==(const hash_result& left, const hash_result& right) noexcept
@@ -27,7 +28,7 @@ struct hash_result<T>
 		return left.m_val == right.m_val;
 	}
 
-	T::value_type m_val;
+	typename T::value_type m_val;
 };
 
 class xxhash64

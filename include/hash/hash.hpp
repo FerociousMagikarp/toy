@@ -3,6 +3,7 @@
 #include <concepts>
 #include <span>
 #include <string_view>
+#include <bit>
 
 namespace toy
 {

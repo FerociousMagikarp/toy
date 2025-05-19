@@ -1,0 +1,50 @@
+name: Linux CI (GCC13/clang17)
+
+on: [push, pull_request]
+
+jobs:
+  linux-build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        compiler: [gcc-12, clang-15]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update -qq
+          if [[ "${{ matrix.compiler }}" == gcc-12 ]]; then
+            sudo apt-get install -y g++-12
+            sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 90
+            sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 90
+          else
+            sudo apt-get install -y clang-15
+            sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 90
+            sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 90
+          fi
+
+      - name: Configure CMake GCC
+        if: matrix.compiler == 'gcc-12'
+        run: |
+          mkdir build && cd build
+          cmake .. \
+            -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12 -DTOY_BUILD_TEST=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure CMake Clang
+        if: matrix.compiler == 'clang-15'
+        run: |
+          mkdir build && cd build
+          cmake .. \
+            -DCMAKE_C_COMPILER=clang-15 -DCMAKE_CXX_COMPILER=clang++-15 -DTOY_BUILD_TEST=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cd build
+          cmake --build . --parallel $(nproc)
+
+      - name: Run Tests
+        shell: bash
+        run: |
+          ./build/test/toy_test
