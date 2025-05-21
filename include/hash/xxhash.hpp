@@ -189,10 +189,19 @@ public:
 		}
 	}
 
-	constexpr hash_result<xxhash64> result() const noexcept
+	constexpr hash_result_value<64> result() const noexcept
 	{
-		return digest(std::span<const std::uint8_t>(m_buffer.begin(), m_buffer.begin() + m_buffer_size));
+		hash_result_value<64> res;
+		value_type val = digest(std::span<const std::uint8_t>(m_buffer.begin(), m_buffer.begin() + m_buffer_size));
+		res.value = val;
+		return res;
 	}
+};
+
+template <>
+struct hash_result<xxhash64>
+{
+	using type = hash_result_value<64>;
 };
 
 } // namespace toy
