@@ -1,4 +1,5 @@
 #include "hash/xxhash.hpp"
+#include "hash/fnv1a.hpp"
 #include "doctest/doctest.h"
 
 using namespace toy;
@@ -28,3 +29,24 @@ TEST_CASE("xxhash64")
     CHECK(hash_test_1.update("abcdefghijklmnopqrstuvwxyz123456").result() == "bdb6ab26b0eea373"_hash_hex_64);
     CHECK(hash_test_1.update("123456789012345678").result() == "65a900d9fa01554f"_hash_hex_64);
 }
+
+TEST_CASE("fnv1a_32")
+{
+    static_assert(hash<fnv1a_32>().update("a").result() == "e40c292c"_hash_hex_32);
+
+    CHECK(hash<fnv1a_32>().update("a").result() == "e40c292c"_hash_hex_32);
+    CHECK(hash<fnv1a_32>().update(u8"测试").result() == "f78149cf"_hash_hex_32);
+
+    CHECK(hash<fnv1a_32>().update("a").update("a").result() == hash<fnv1a_32>().update("aa").result());
+}
+
+TEST_CASE("fnv1a_64")
+{
+    static_assert(hash<fnv1a_64>().update("a").result() == "af63dc4c8601ec8c"_hash_hex_64);
+
+    CHECK(hash<fnv1a_64>().update("a").result() == "af63dc4c8601ec8c"_hash_hex_64);
+    CHECK(hash<fnv1a_64>().update(u8"测试").result() == "4655115154662b2f"_hash_hex_64);
+
+    CHECK(hash<fnv1a_64>().update("a").update("a").result() == hash<fnv1a_64>().update("aa").result());
+}
+
