@@ -41,10 +41,9 @@ public:
     constexpr ~fnv1a() noexcept {}
 
     template <byte_char_cpt B>
-    constexpr fnv1a& update(std::span<const B> input) noexcept
+    constexpr void update(std::span<const B> input) noexcept
     {
         sppend_bytes(input);
-        return *this;
     }
 
     constexpr hash_result_value<N> result() const noexcept

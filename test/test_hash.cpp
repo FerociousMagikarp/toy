@@ -1,5 +1,6 @@
 #include "hash/xxhash.hpp"
 #include "hash/fnv1a.hpp"
+#include "hash/md.hpp"
 #include "doctest/doctest.h"
 
 using namespace toy;
@@ -50,3 +51,31 @@ TEST_CASE("fnv1a_64")
     CHECK(hash<fnv1a_64>().update("a").update("a").result() == hash<fnv1a_64>().update("aa").result());
 }
 
+TEST_CASE("md5")
+{
+    static_assert(hash<md5>().update("a").result() == "0cc175b9c0f1b6a831c399e269772661"_hash_hex_128);
+    static_assert(hash<md5>().update("12345678901234567890123456789012345678901234567890123456789012345678901234567890").result() == "57edf4a22be3c955ac49da2e2107b67a"_hash_hex_128);
+
+    CHECK(hash<md5>().update("").result() == "d41d8cd98f00b204e9800998ecf8427e"_hash_hex_128);
+    CHECK(hash<md5>().update("a").result() == "0cc175b9c0f1b6a831c399e269772661"_hash_hex_128);
+    CHECK(hash<md5>().update("abc").result() == "900150983cd24fb0d6963f7d28e17f72"_hash_hex_128);
+    CHECK(hash<md5>().update("message digest").result() == "f96b697d7cb7938d525a2f31aaf161d0"_hash_hex_128);
+    CHECK(hash<md5>().update("abcdefghijklmnopqrstuvwxyz").result() == "c3fcd3d76192e4007dfb496cca67e13b"_hash_hex_128);
+    CHECK(hash<md5>().update("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789").result() == "d174ab98d277d9f5a5611c2c9f419d9f"_hash_hex_128);
+    CHECK(hash<md5>().update("12345678901234567890123456789012345678901234567890123456789012345678901234567890").result() == "57edf4a22be3c955ac49da2e2107b67a"_hash_hex_128);
+
+    CHECK(hash<md5>().update(u8"测试").result() == "db06c78d1e24cf708a14ce81c9b617ec"_hash_hex_128);
+
+    auto hash_test_1 = hash<md5>();
+    CHECK(hash_test_1.result() == "d41d8cd98f00b204e9800998ecf8427e"_hash_hex_128);
+    hash_test_1.update("a");
+    CHECK(hash_test_1.result() == "0cc175b9c0f1b6a831c399e269772661"_hash_hex_128);
+    hash_test_1.update("bc");
+    CHECK(hash_test_1.result() == "900150983cd24fb0d6963f7d28e17f72"_hash_hex_128);
+    hash_test_1.update("defghijklmnopqrstuvwxyz");
+    CHECK(hash_test_1.result() == "c3fcd3d76192e4007dfb496cca67e13b"_hash_hex_128);
+    hash_test_1.update("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+    CHECK(hash_test_1.result() == "76658de2ac7d406f93dfbe8bb6d9f549"_hash_hex_128);
+    hash_test_1.update("345678901234567890");
+    CHECK(hash_test_1.result() == "2fba0860b3d8abfdee05ef2cc87812d2"_hash_hex_128);
+}
