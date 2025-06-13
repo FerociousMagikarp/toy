@@ -16,6 +16,9 @@ concept one_of_cpt = (std::same_as<Args, T> || ...);
 template <typename T>
 concept byte_char_cpt = one_of_cpt<T, char, unsigned char, std::byte, std::int8_t, std::uint8_t, char8_t>;
 
+template <class... T>
+constexpr bool always_false = false;
+
 template <std::unsigned_integral T, byte_char_cpt B>
 constexpr T cast_from_bytes(std::span<const B, sizeof(T)> val) noexcept
 {
@@ -245,7 +248,9 @@ template <typename T>
 class hash
 {
 public:
-    constexpr explicit hash(std::uint64_t seed = 0) noexcept : m_val(seed) {}
+    template <typename... Args>
+        requires std::is_constructible_v<T, Args...>
+    constexpr explicit hash(Args&&... args) noexcept : m_val(std::forward<Args>(args)...) {}
     constexpr ~hash() noexcept {}
 
     constexpr hash& update(std::string_view s) noexcept

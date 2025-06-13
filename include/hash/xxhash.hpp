@@ -6,37 +6,34 @@
 
 namespace toy
 {
-class xxhash64;
+
+// from https://github.com/Cyan4973/xxHash
 
 namespace detail
 {
 
-template <typename T>
-concept xxhash_cpt = one_of_cpt<T, xxhash64>;
-
-} // namespace detail
-
-template <detail::xxhash_cpt T>
-struct hash_result<T>
+struct xxhash32_data
 {
-    template <std::integral I>
-    constexpr hash_result(I val) noexcept : m_val(static_cast<typename T::value_type>(val)) {}
-    constexpr ~hash_result() noexcept {}
+    using value_type = std::uint32_t;
 
-    friend constexpr bool operator==(const hash_result& left, const hash_result& right) noexcept
+    constexpr static std::array<value_type, 5> PRIMES =
     {
-        return left.m_val == right.m_val;
-    }
-
-    typename T::value_type m_val;
+        0x9E3779B1U,
+        0x85EBCA77U,
+        0xC2B2AE3DU,
+        0x27D4EB2FU,
+        0x165667B1U,
+    };
+    constexpr static std::size_t MAX_BUFFER_SIZE = 16;
+    constexpr static int ROUND_ROT = 13;
+    constexpr static std::array<int, 3> AVALANCHE_SHIFT = { 15, 13, 16 };
+    constexpr static std::array<int, 4> MERGE_ACC_ROT = { 1, 7, 12, 18 };
 };
 
-class xxhash64
+struct xxhash64_data
 {
-public:
     using value_type = std::uint64_t;
 
-private:
     constexpr static std::array<value_type, 5> PRIMES =
     {
         0x9E3779B185EBCA87ULL,
@@ -46,6 +43,29 @@ private:
         0x27D4EB2F165667C5ULL,
     };
     constexpr static std::size_t MAX_BUFFER_SIZE = 32;
+    constexpr static int ROUND_ROT = 31;
+    constexpr static std::array<int, 3> AVALANCHE_SHIFT = { 33, 29, 32 };
+    constexpr static std::array<int, 4> MERGE_ACC_ROT = { 1, 7, 12, 18 };
+};
+
+} // namespace detail
+
+template <int N>
+    requires (N == 32 || N == 64)
+class xxhash
+{
+private:
+    using data_type = std::conditional_t<N == 32, detail::xxhash32_data, detail::xxhash64_data>;
+
+public:
+    using value_type = typename data_type::value_type;
+
+private:
+    constexpr static std::array<value_type, 5> PRIMES = data_type::PRIMES;
+    constexpr static std::size_t MAX_BUFFER_SIZE = data_type::MAX_BUFFER_SIZE;
+    constexpr static int ROUND_ROT = data_type::ROUND_ROT;
+    constexpr static std::array<int, 3> AVALANCHE_SHIFT = data_type::AVALANCHE_SHIFT;
+    constexpr static std::array<int, 4> MERGE_ACC_ROT = data_type::MERGE_ACC_ROT;
 
     std::array<value_type, 4> m_accs{};
     std::array<std::uint8_t, MAX_BUFFER_SIZE> m_buffer{};
@@ -63,7 +83,7 @@ private:
     constexpr value_type round(value_type acc, value_type input) const noexcept
     {
         acc += input * PRIMES[1];
-        acc = std::rotl(acc, 31);
+        acc = std::rotl(acc, ROUND_ROT);
         acc *= PRIMES[0];
         return acc;
     }
@@ -78,45 +98,69 @@ private:
 
     constexpr value_type merge_accs() const noexcept
     {
-        value_type h64 = std::rotl(m_accs[0], 1) + std::rotl(m_accs[1], 7) + std::rotl(m_accs[2], 12) + std::rotl(m_accs[3], 18);
-        h64 = merge_round(h64, m_accs[0]);
-        h64 = merge_round(h64, m_accs[1]);
-        h64 = merge_round(h64, m_accs[2]);
-        h64 = merge_round(h64, m_accs[3]);
-        return h64;
+        value_type h = std::rotl(m_accs[0], MERGE_ACC_ROT[0]) + std::rotl(m_accs[1], MERGE_ACC_ROT[1])
+            + std::rotl(m_accs[2], MERGE_ACC_ROT[2]) + std::rotl(m_accs[3], MERGE_ACC_ROT[3]);
+        if constexpr (N == 64)
+        {
+            h = merge_round(h, m_accs[0]);
+            h = merge_round(h, m_accs[1]);
+            h = merge_round(h, m_accs[2]);
+            h = merge_round(h, m_accs[3]);
+        }
+        return h;
     }
 
     constexpr value_type avalanche(value_type hash) const noexcept
     {
-        hash ^= hash >> 33;
+        hash ^= hash >> AVALANCHE_SHIFT[0];
         hash *= PRIMES[1];
-        hash ^= hash >> 29;
+        hash ^= hash >> AVALANCHE_SHIFT[1];
         hash *= PRIMES[2];
-        hash ^= hash >> 32;
+        hash ^= hash >> AVALANCHE_SHIFT[2];
         return hash;
     }
 
     constexpr value_type finalize(value_type hash, std::span<const std::uint8_t> input) const noexcept
     {
-        while (input.size() >= sizeof(std::uint64_t))
+        if constexpr (N == 32)
         {
-            const auto k1 = round(0, detail::read_integral<std::uint64_t>(input));
-            hash ^= k1;
-            hash = std::rotl(hash, 27) * PRIMES[0] + PRIMES[3];
-        }
+            while (input.size() >= sizeof(std::uint32_t))
+            {
+                hash += detail::read_integral<std::uint32_t>(input) * PRIMES[2];
+                hash = std::rotl(hash, 17) * PRIMES[3];
+            }
 
-        if (input.size() >= sizeof(std::uint32_t))
+            while (!input.empty())
+            {
+                hash += static_cast<value_type>(detail::read_integral<std::uint8_t>(input)) * PRIMES[4];
+                hash = std::rotl(hash, 11) * PRIMES[0];
+            }
+        }
+        else if constexpr (N == 64)
         {
-            hash ^= static_cast<std::uint64_t>(detail::read_integral<std::uint32_t>(input)) * PRIMES[0];
-            hash = std::rotl(hash, 23) * PRIMES[1] + PRIMES[2];
-        }
+            while (input.size() >= sizeof(std::uint64_t))
+            {
+                const auto k1 = round(0, detail::read_integral<std::uint64_t>(input));
+                hash ^= k1;
+                hash = std::rotl(hash, 27) * PRIMES[0] + PRIMES[3];
+            }
 
-        while (!input.empty())
+            if (input.size() >= sizeof(std::uint32_t))
+            {
+                hash ^= static_cast<value_type>(detail::read_integral<std::uint32_t>(input)) * PRIMES[0];
+                hash = std::rotl(hash, 23) * PRIMES[1] + PRIMES[2];
+            }
+
+            while (!input.empty())
+            {
+                hash ^= static_cast<value_type>(detail::read_integral<std::uint8_t>(input)) * PRIMES[4];
+                hash = std::rotl(hash, 11) * PRIMES[0];
+            }
+        }
+        else
         {
-            hash ^= static_cast<std::uint64_t>(detail::read_integral<std::uint8_t>(input)) * PRIMES[4];
-            hash = std::rotl(hash, 11) * PRIMES[0];
+            static_assert(detail::always_false<decltype(N)>);
         }
-
         return avalanche(hash);
     }
 
@@ -136,22 +180,22 @@ private:
 
     constexpr value_type digest(std::span<const std::uint8_t> buffer) const noexcept
     {
-        value_type h64 = 0;
+        value_type h = 0;
         if (m_total_len >= MAX_BUFFER_SIZE)
-            h64 = merge_accs();
+            h = merge_accs();
         else
-            h64 = m_accs[2] + PRIMES[4];
-        h64 += static_cast<std::uint64_t>(m_total_len);
+            h = m_accs[2] + PRIMES[4];
+        h += static_cast<value_type>(m_total_len);
 
-        return finalize(h64, buffer);
+        return finalize(h, buffer);
     }
 
 public:
-    constexpr explicit xxhash64(value_type seed = 0) noexcept
+    constexpr explicit xxhash(value_type seed = 0) noexcept
     {
         init_accs(seed);
     }
-    constexpr ~xxhash64() noexcept {}
+    constexpr ~xxhash() noexcept {}
 
     template <detail::byte_char_cpt B>
     constexpr void update(std::span<const B> input) noexcept
@@ -189,19 +233,22 @@ public:
         }
     }
 
-    constexpr hash_result_value<64> result() const noexcept
+    constexpr hash_result_value<N> result() const noexcept
     {
-        hash_result_value<64> res;
+        hash_result_value<N> res;
         value_type val = digest(std::span<const std::uint8_t>(m_buffer.begin(), m_buffer.begin() + m_buffer_size));
         res.value = val;
         return res;
     }
 };
 
-template <>
-struct hash_result<xxhash64>
+template <int N>
+struct hash_result<xxhash<N>>
 {
-    using type = hash_result_value<64>;
+    using type = hash_result_value<N>;
 };
+
+using xxhash32 = xxhash<32>;
+using xxhash64 = xxhash<64>;
 
 } // namespace toy

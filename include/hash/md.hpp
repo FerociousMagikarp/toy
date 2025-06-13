@@ -141,7 +141,7 @@ private:
     }
 
 public:
-    constexpr md5([[maybe_unused]]std::uint64_t seed) noexcept {}
+    constexpr md5() noexcept {}
     constexpr ~md5() noexcept {}
 
     template <detail::byte_char_cpt B>

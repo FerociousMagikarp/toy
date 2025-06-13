@@ -5,9 +5,44 @@
 
 using namespace toy;
 
+TEST_CASE("xxhash32")
+{
+    static_assert(hash<xxhash32>().update("a").result() == "550d7456"_hash_hex_32);
+    static_assert(hash<xxhash32>().update("abcdefghijklmnopqrstuvwxyz1234567").result() == "f3c42fe1"_hash_hex_32);
+
+    CHECK(hash<xxhash32>().result() == "02cc5d05"_hash_hex_32);
+    CHECK(hash<xxhash32>(668718853).result() == "252648be"_hash_hex_32);
+    CHECK(hash<xxhash32>().update("a").result() == "550d7456"_hash_hex_32);
+    CHECK(hash<xxhash32>(191961062).update("a").result() == "814c3d5f"_hash_hex_32);
+    CHECK(hash<xxhash32>().update("abcdefghijklmnopqrstuvwxyz12345").result() == "18439a59"_hash_hex_32);
+    CHECK(hash<xxhash32>(877380273).update("abcdefghijklmnopqrstuvwxyz12345").result() == "7a4feb5b"_hash_hex_32);
+    CHECK(hash<xxhash32>().update("abcdefghijklmnopqrstuvwxyz123456").result() == "865bc9b6"_hash_hex_32);
+    CHECK(hash<xxhash32>().update("abcdefghijklmnopqrstuvwxyz1234567").result() == "f3c42fe1"_hash_hex_32);
+
+    CHECK(hash<xxhash32>().update(u8"测试").result() == "bc8c4d48"_hash_hex_32);
+    CHECK(hash<xxhash32>(1332727061).update(u8"测试").result() == "82828525"_hash_hex_32);
+    CHECK(hash<xxhash32>().update(u8"无使尨也吠").result() == "d72766ef"_hash_hex_32);
+    CHECK(hash<xxhash32>().update(u8"鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波").result() == "c451dd7a"_hash_hex_32);
+    CHECK(hash<xxhash32>().update(u8"鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波.").result() == "2e0a60ad"_hash_hex_32);
+    CHECK(hash<xxhash32>().update(u8"鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波。").result() == "b6c1c166"_hash_hex_32);
+
+    auto hash_test_1 = hash<xxhash32>(1918516007);
+    CHECK(hash_test_1.update("abc").result() == "647a2fa5"_hash_hex_32);
+    CHECK(hash_test_1.update("defgh").result() == "33ca1196"_hash_hex_32);
+    CHECK(hash_test_1.update("abcdefghijklmnopqrstuvwxyz123456").result() == "d64f6183"_hash_hex_32);
+    CHECK(hash_test_1.update("123456789012345678").result() == "fc7462d6"_hash_hex_32);
+
+    auto hash_test_2 = hash<xxhash32>();
+    CHECK(hash_test_2.update(u8"锄禾日当午,").result() == "e32666aa"_hash_hex_32);
+    CHECK(hash_test_2.update(u8"汗滴禾下土.").result() == "38e3c050"_hash_hex_32);
+    CHECK(hash_test_2.update(u8"谁知盘中餐,").result() == "9b4ae119"_hash_hex_32);
+    CHECK(hash_test_2.update(u8"粒粒皆辛苦.").result() == "65db2f60"_hash_hex_32);
+}
+
 TEST_CASE("xxhash64")
 {
     static_assert(hash<xxhash64>().update("a").result() == "d24ec4f1a98c6e5b"_hash_hex_64);
+    static_assert(hash<xxhash64>().update("abcdefghijklmnopqrstuvwxyz1234567").result() == "23bbd16d29353c5f"_hash_hex_64);
 
     CHECK(hash<xxhash64>().result() == "ef46db3751d8e999"_hash_hex_64);
     CHECK(hash<xxhash64>(668718853).result() == "04e830582a31a119"_hash_hex_64);
@@ -20,6 +55,7 @@ TEST_CASE("xxhash64")
 
     CHECK(hash<xxhash64>().update(u8"测试").result() == "403d66837e9bc61f"_hash_hex_64);
     CHECK(hash<xxhash64>(1332727061).update(u8"测试").result() == "8b79d3346ad56ea2"_hash_hex_64);
+    CHECK(hash<xxhash64>().update(u8"无使尨也吠").result() == "a4800f1d00dd325b"_hash_hex_64);
     CHECK(hash<xxhash64>().update(u8"鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波").result() == "497ad04e6a197d28"_hash_hex_64);
     CHECK(hash<xxhash64>().update(u8"鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波.").result() == "ec19910c59fa74e0"_hash_hex_64);
     CHECK(hash<xxhash64>().update(u8"鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波。").result() == "e073c32b422ea516"_hash_hex_64);
@@ -29,6 +65,12 @@ TEST_CASE("xxhash64")
     CHECK(hash_test_1.update("defgh").result() == "0e91c6710825c975"_hash_hex_64);
     CHECK(hash_test_1.update("abcdefghijklmnopqrstuvwxyz123456").result() == "bdb6ab26b0eea373"_hash_hex_64);
     CHECK(hash_test_1.update("123456789012345678").result() == "65a900d9fa01554f"_hash_hex_64);
+
+    auto hash_test_2 = hash<xxhash64>();
+    CHECK(hash_test_2.update(u8"锄禾日当午,").result() == "5898901694302e88"_hash_hex_64);
+    CHECK(hash_test_2.update(u8"汗滴禾下土.").result() == "3e0a8dd7c2e943cc"_hash_hex_64);
+    CHECK(hash_test_2.update(u8"谁知盘中餐,").result() == "d2d9b500123a1c3d"_hash_hex_64);
+    CHECK(hash_test_2.update(u8"粒粒皆辛苦.").result() == "2b87a1b6cbc599e6"_hash_hex_64);
 }
 
 TEST_CASE("fnv1a_32")

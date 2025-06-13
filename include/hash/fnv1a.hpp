@@ -37,7 +37,7 @@ private:
     }
 
 public:
-    constexpr fnv1a([[maybe_unused]] int seed) noexcept : m_val(OFFSET) {}
+    constexpr fnv1a() noexcept : m_val(OFFSET) {}
     constexpr ~fnv1a() noexcept {}
 
     template <byte_char_cpt B>
