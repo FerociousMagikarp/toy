@@ -27,3 +27,7 @@ target_compile_options(
     ${TEST_NAME} PUBLIC
     $<$<CXX_COMPILER_ID:MSVC>:/utf-8>
 )
+
+if (TOY_BUILD_BENCHMARK)
+    add_subdirectory(benchmark)
+endif()
