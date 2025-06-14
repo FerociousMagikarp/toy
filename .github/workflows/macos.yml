@@ -17,6 +17,7 @@ jobs:
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DTOY_BUILD_TEST=ON \
+            -DTOY_BUILD_BENCHMARK=ON \
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
@@ -28,3 +29,4 @@ jobs:
         shell: bash
         run: |
           ./build/test/toy_test
+          ./build/test/benchmark/toy_bench

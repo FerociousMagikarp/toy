@@ -30,14 +30,14 @@ jobs:
         run: |
           mkdir build && cd build
           cmake .. \
-            -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12 -DTOY_BUILD_TEST=ON -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12 -DTOY_BUILD_TEST=ON -DTOY_BUILD_BENCHMARK=ON -DCMAKE_BUILD_TYPE=Release
 
       - name: Configure CMake Clang
         if: matrix.compiler == 'clang-15'
         run: |
           mkdir build && cd build
           cmake .. \
-            -DCMAKE_C_COMPILER=clang-15 -DCMAKE_CXX_COMPILER=clang++-15 -DTOY_BUILD_TEST=ON -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_C_COMPILER=clang-15 -DCMAKE_CXX_COMPILER=clang++-15 -DTOY_BUILD_TEST=ON -DTOY_BUILD_BENCHMARK=ON -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: |
@@ -48,3 +48,4 @@ jobs:
         shell: bash
         run: |
           ./build/test/toy_test
+          ./build/test/benchmark/toy_bench
