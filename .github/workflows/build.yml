@@ -1,4 +1,4 @@
-name: Linux CI (GCC13/clang17)
+name: Toy
 
 on: [push, pull_request]
 
@@ -43,6 +43,64 @@ jobs:
         run: |
           cd build
           cmake --build . --parallel $(nproc)
+
+      - name: Run Tests
+        shell: bash
+        run: |
+          ./build/test/toy_test
+          ./build/test/benchmark/toy_bench
+
+  windows-msvc-build:
+    name: Windows (MSVC)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # CMake 工具链配置
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DTOY_BUILD_TEST=ON `
+            -DTOY_BUILD_BENCHMARK=ON `
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cd build
+          cmake --build . --config Release --parallel 4
+
+      - name: Run Tests
+        shell: bash
+        run: |
+          ./build/test/Release/toy_test.exe
+          ./build/test/benchmark/Release/toy_bench.exe
+
+  macos-build:
+    runs-on: macos-13
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DTOY_BUILD_TEST=ON \
+            -DTOY_BUILD_BENCHMARK=ON \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cd build
+          cmake --build . --parallel $(sysctl -n hw.logicalcpu)
 
       - name: Run Tests
         shell: bash
