@@ -31,3 +31,8 @@ target_compile_options(
 if (TOY_BUILD_BENCHMARK)
     add_subdirectory(benchmark)
 endif()
+
+if (TOY_ENABLE_COVERAGE)
+    target_compile_options(${TEST_NAME} PUBLIC --coverage -fprofile-arcs -ftest-coverage)
+    target_link_libraries(${TEST_NAME} PUBLIC --coverage)
+endif()

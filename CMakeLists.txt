@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(TOY_BUILD_TEST "Build test." OFF)
 option(TOY_BUILD_BENCHMARK "Build benchmark." OFF)
+option(TOY_ENABLE_COVERAGE "Enable coverage reporting." OFF)
 
 file(GLOB TOY_INCLUDE_DIR
     ${CMAKE_CURRENT_SOURCE_DIR}

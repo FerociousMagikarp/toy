@@ -49,3 +49,55 @@ jobs:
         run: |
           ./build/test/toy_test
           ./build/test/benchmark/toy_bench
+
+  coverage:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-12 g++-12
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 90
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 90
+        sudo apt-get install -y cmake g++ python3-pip
+        pip install gcovr
+
+    - name: Configure with coverage
+      run: |
+        mkdir build && cd build
+        cmake .. \
+          -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12 -DTOY_BUILD_TEST=ON -DTOY_ENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
+
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --parallel $(nproc)
+
+    - name: Run doctests
+      shell: bash
+      run: |
+        cd build/test
+        ./toy_test --no-exitcode
+        find . -name '*.gcda' -exec chmod a+r {} +
+
+    - name: Generate report
+      run: |
+        gcovr --root . \
+              --gcov-executable "gcov-12 -l -p" \
+              --exclude test/ \
+              --exclude build/ \
+              --xml coverage.xml \
+              --html coverage.html \
+              --html-details \
+              --print-summary \
+              --verbose
+
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: coverage.xml
+        verbose: true
+
