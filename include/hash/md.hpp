@@ -189,7 +189,7 @@ public:
         std::array<std::uint8_t, 4> remain{};
         std::span<const std::uint8_t> buffer = m_buffer;
         std::size_t x_front_size = m_buffer_size / 4; // m_buffer_size < BLOCK_SIZE
-        for (std::size_t i = 0; i < x.size(); i++)
+        for (std::size_t i = 0; i < X_SIZE; i++)
         {
             if (i >= x_front_size)
                 break;

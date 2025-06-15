@@ -29,6 +29,7 @@ TEST_CASE("xxhash32")
     auto hash_test_1 = hash<xxhash32>(1918516007);
     CHECK(hash_test_1.update("abc").result() == "647a2fa5"_hash_hex_32);
     CHECK(hash_test_1.update("defgh").result() == "33ca1196"_hash_hex_32);
+    CHECK(hash_test_1.update("").result() == "33ca1196"_hash_hex_32);
     CHECK(hash_test_1.update("abcdefghijklmnopqrstuvwxyz123456").result() == "d64f6183"_hash_hex_32);
     CHECK(hash_test_1.update("123456789012345678").result() == "fc7462d6"_hash_hex_32);
 
@@ -63,6 +64,7 @@ TEST_CASE("xxhash64")
     auto hash_test_1 = hash<xxhash64>(1918516007);
     CHECK(hash_test_1.update("abc").result() == "0cb84df6457c2c35"_hash_hex_64);
     CHECK(hash_test_1.update("defgh").result() == "0e91c6710825c975"_hash_hex_64);
+    CHECK(hash_test_1.update("").result() == "0e91c6710825c975"_hash_hex_64);
     CHECK(hash_test_1.update("abcdefghijklmnopqrstuvwxyz123456").result() == "bdb6ab26b0eea373"_hash_hex_64);
     CHECK(hash_test_1.update("123456789012345678").result() == "65a900d9fa01554f"_hash_hex_64);
 
@@ -117,6 +119,8 @@ TEST_CASE("md5")
     hash_test_1.update("defghijklmnopqrstuvwxyz");
     CHECK(hash_test_1.result() == "c3fcd3d76192e4007dfb496cca67e13b"_hash_hex_128);
     hash_test_1.update("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+    CHECK(hash_test_1.result() == "76658de2ac7d406f93dfbe8bb6d9f549"_hash_hex_128);
+    hash_test_1.update("");
     CHECK(hash_test_1.result() == "76658de2ac7d406f93dfbe8bb6d9f549"_hash_hex_128);
     hash_test_1.update("345678901234567890");
     CHECK(hash_test_1.result() == "2fba0860b3d8abfdee05ef2cc87812d2"_hash_hex_128);
