@@ -157,5 +157,7 @@ jobs:
       uses: codecov/codecov-action@v4
       with:
         files: coverage.xml
+        flags: doctest_linux_coverage
+        name: doctest_linux_gcc_coverage
         verbose: true
 
