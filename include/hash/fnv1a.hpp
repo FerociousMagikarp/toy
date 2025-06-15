@@ -27,7 +27,7 @@ private:
     value_type m_val;
 
     template <byte_char_cpt B>
-    constexpr void sppend_bytes(std::span<const B> input) noexcept
+    constexpr void spend_bytes(std::span<const B> input) noexcept
     {
         for (const B c : input)
         {
@@ -43,7 +43,7 @@ public:
     template <byte_char_cpt B>
     constexpr void update(std::span<const B> input) noexcept
     {
-        sppend_bytes(input);
+        spend_bytes(input);
     }
 
     constexpr hash_result_value<N> result() const noexcept
