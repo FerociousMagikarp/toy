@@ -1,1 +1,8 @@
 # toy
+
+[![Linux Build](https://img.shields.io/github/actions/workflow/status/FerociousMagikarp/toy/build.yml?job=linux-build&label=Linux&logo=linux)](https://github.com/FerociousMagikarp/toy/actions/workflows/build.yml)
+[![macOS Build](https://img.shields.io/github/actions/workflow/status/FerociousMagikarp/toy/build.yml?job=macos-build&label=macOS&logo=apple)](https://github.com/FerociousMagikarp/toy/actions/workflows/build.yml)
+[![Windows Build](https://img.shields.io/github/actions/workflow/status/FerociousMagikarp/toy/build.yml?job=windows-msvc-build&label=Windows&logo=windows")](https://github.com/FerociousMagikarp/toy/actions/workflows/build.yml)
+[![Coverage](https://codecov.io/gh/FerociousMagikarp/toy/branch/main/graph/badge.svg?flag=doctest_linux_coverage)](https://app.codecov.io/gh/FerociousMagikarp/toy/flags)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://opensource.org/licenses/MIT)
+[![C++20](https://img.shields.io/badge/C++-20-blue?logo=c%2B%2B)](https://shields.io/)
