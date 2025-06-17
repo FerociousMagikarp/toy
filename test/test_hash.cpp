@@ -106,6 +106,7 @@ TEST_CASE("md5")
     CHECK(hash<md5>().update("message digest").result() == "f96b697d7cb7938d525a2f31aaf161d0"_hash_hex_128);
     CHECK(hash<md5>().update("abcdefghijklmnopqrstuvwxyz").result() == "c3fcd3d76192e4007dfb496cca67e13b"_hash_hex_128);
     CHECK(hash<md5>().update("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789").result() == "d174ab98d277d9f5a5611c2c9f419d9f"_hash_hex_128);
+    CHECK(hash<md5>().update("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.").result() == "8399a3d9447c3d2e7856d1d21d3e7ade"_hash_hex_128);
     CHECK(hash<md5>().update("12345678901234567890123456789012345678901234567890123456789012345678901234567890").result() == "57edf4a22be3c955ac49da2e2107b67a"_hash_hex_128);
 
     CHECK(hash<md5>().update(u8"测试").result() == "db06c78d1e24cf708a14ce81c9b617ec"_hash_hex_128);

@@ -22,22 +22,70 @@ constexpr bool always_false = false;
 template <std::unsigned_integral T, byte_char_cpt B>
 constexpr T cast_from_bytes(std::span<const B, sizeof(T)> val) noexcept
 {
-    return[val]<std::size_t... Idx>(std::index_sequence<Idx...>) -> T
+    if (std::is_constant_evaluated())
     {
-        if constexpr (std::endian::native == std::endian::little)
-            return static_cast<T>(((static_cast<T>(val[Idx]) << (Idx * 8)) | ...));
-        else
-            return static_cast<T>(((static_cast<T>(val[Idx]) << ((sizeof(T) - 1 - Idx) * 8)) | ...));
-    } (std::make_index_sequence<sizeof(T)>());
+        return[val]<std::size_t... Idx>(std::index_sequence<Idx...>) -> T
+        {
+            if constexpr (std::endian::native == std::endian::little)
+                return static_cast<T>(((static_cast<T>(val[Idx]) << (Idx * 8)) | ...));
+            else
+                return static_cast<T>(((static_cast<T>(val[Idx]) << ((sizeof(T) - 1 - Idx) * 8)) | ...));
+        } (std::make_index_sequence<sizeof(T)>());
+    }
+    else
+    {
+        T res{};
+        std::memcpy(std::addressof(res), val.data(), sizeof(T));
+        if constexpr (std::endian::native == std::endian::big)
+        {
+            // TODO
+            static_assert(always_false<T>);
+        }
+        return res;
+    }
+}
+
+template <std::unsigned_integral T, std::size_t N, byte_char_cpt B>
+constexpr std::array<T, N> cast_from_bytes(std::span<const B, sizeof(T) * N> val) noexcept
+{
+    if (std::is_constant_evaluated())
+    {
+        std::array<T, N> res{};
+        std::span<const B> data = val;
+        for (std::size_t i = 0; i < N; i++)
+        {
+            res[i] = cast_from_bytes<T>(data.template first<sizeof(T)>());
+            data = data.subspan(sizeof(T));
+        }
+        return res;
+    }
+    else
+    {
+        std::array<T, N> res{};
+        std::memcpy(res.data(), val.data(), sizeof(T) * N);
+        if constexpr (std::endian::native == std::endian::big)
+        {
+            // TODO
+            static_assert(always_false<T>);
+        }
+        return res;
+    }
 }
 
 template <std::unsigned_integral T, byte_char_cpt B>
 constexpr T read_integral(std::span<const B>& val) noexcept
 {
-    constexpr auto SIZE_OF_T = sizeof(T);
-    const auto res = cast_from_bytes<T>(val.template first<SIZE_OF_T>());
-    val = val.subspan(SIZE_OF_T);
-    return res;
+    auto val_first = val.template first<sizeof(T)>();
+    val = val.subspan(sizeof(T));
+    return cast_from_bytes<T>(val_first);
+}
+
+template <std::unsigned_integral T, std::size_t N, byte_char_cpt B>
+constexpr std::array<T, N> read_array(std::span<const B>& val) noexcept
+{
+    auto val_first = val.template first<sizeof(T) * N>();
+    val = val.subspan(sizeof(T) * N);
+    return cast_from_bytes<T, N>(val_first);
 }
 
 template<std::size_t N> struct _hash_result_base;

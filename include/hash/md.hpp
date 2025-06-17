@@ -91,32 +91,76 @@ private:
         std::array<std::uint32_t, 4> st = { state[0], state[1], state[2], state[3] };
 
         // round 1
-        for (std::size_t i = 0; i < 16; i++)
-        {
-            func_ff(st[(16 - i) & 0x03], st[(17 - i) & 0x03], st[(18 - i) & 0x03], st[(19 - i) & 0x03],
-                x[i], TABLE_S[i & 0x03], TABLE_T[i]);
-        }
+        func_ff(st[0], st[1], st[2], st[3], x[0], TABLE_S[0], TABLE_T[0]);
+        func_ff(st[3], st[0], st[1], st[2], x[1], TABLE_S[1], TABLE_T[1]);
+        func_ff(st[2], st[3], st[0], st[1], x[2], TABLE_S[2], TABLE_T[2]);
+        func_ff(st[1], st[2], st[3], st[0], x[3], TABLE_S[3], TABLE_T[3]);
+        func_ff(st[0], st[1], st[2], st[3], x[4], TABLE_S[0], TABLE_T[4]);
+        func_ff(st[3], st[0], st[1], st[2], x[5], TABLE_S[1], TABLE_T[5]);
+        func_ff(st[2], st[3], st[0], st[1], x[6], TABLE_S[2], TABLE_T[6]);
+        func_ff(st[1], st[2], st[3], st[0], x[7], TABLE_S[3], TABLE_T[7]);
+        func_ff(st[0], st[1], st[2], st[3], x[8], TABLE_S[0], TABLE_T[8]);
+        func_ff(st[3], st[0], st[1], st[2], x[9], TABLE_S[1], TABLE_T[9]);
+        func_ff(st[2], st[3], st[0], st[1], x[10], TABLE_S[2], TABLE_T[10]);
+        func_ff(st[1], st[2], st[3], st[0], x[11], TABLE_S[3], TABLE_T[11]);
+        func_ff(st[0], st[1], st[2], st[3], x[12], TABLE_S[0], TABLE_T[12]);
+        func_ff(st[3], st[0], st[1], st[2], x[13], TABLE_S[1], TABLE_T[13]);
+        func_ff(st[2], st[3], st[0], st[1], x[14], TABLE_S[2], TABLE_T[14]);
+        func_ff(st[1], st[2], st[3], st[0], x[15], TABLE_S[3], TABLE_T[15]);
 
         // round 2
-        for (std::size_t i = 0; i < 16; i++)
-        {
-            func_gg(st[(16 - i) & 0x03], st[(17 - i) & 0x03], st[(18 - i) & 0x03], st[(19 - i) & 0x03],
-                x[(i * 5 + 1) & 0x0f], TABLE_S[(i & 0x03) + 4], TABLE_T[i + 16]);
-        }
+        func_gg(st[0], st[1], st[2], st[3], x[1], TABLE_S[4], TABLE_T[16]);
+        func_gg(st[3], st[0], st[1], st[2], x[6], TABLE_S[5], TABLE_T[17]);
+        func_gg(st[2], st[3], st[0], st[1], x[11], TABLE_S[6], TABLE_T[18]);
+        func_gg(st[1], st[2], st[3], st[0], x[0], TABLE_S[7], TABLE_T[19]);
+        func_gg(st[0], st[1], st[2], st[3], x[5], TABLE_S[4], TABLE_T[20]);
+        func_gg(st[3], st[0], st[1], st[2], x[10], TABLE_S[5], TABLE_T[21]);
+        func_gg(st[2], st[3], st[0], st[1], x[15], TABLE_S[6], TABLE_T[22]);
+        func_gg(st[1], st[2], st[3], st[0], x[4], TABLE_S[7], TABLE_T[23]);
+        func_gg(st[0], st[1], st[2], st[3], x[9], TABLE_S[4], TABLE_T[24]);
+        func_gg(st[3], st[0], st[1], st[2], x[14], TABLE_S[5], TABLE_T[25]);
+        func_gg(st[2], st[3], st[0], st[1], x[3], TABLE_S[6], TABLE_T[26]);
+        func_gg(st[1], st[2], st[3], st[0], x[8], TABLE_S[7], TABLE_T[27]);
+        func_gg(st[0], st[1], st[2], st[3], x[13], TABLE_S[4], TABLE_T[28]);
+        func_gg(st[3], st[0], st[1], st[2], x[2], TABLE_S[5], TABLE_T[29]);
+        func_gg(st[2], st[3], st[0], st[1], x[7], TABLE_S[6], TABLE_T[30]);
+        func_gg(st[1], st[2], st[3], st[0], x[12], TABLE_S[7], TABLE_T[31]);
 
         // round 3
-        for (std::size_t i = 0; i < 16; i++)
-        {
-            func_hh(st[(16 - i) & 0x03], st[(17 - i) & 0x03], st[(18 - i) & 0x03], st[(19 - i) & 0x03],
-                x[(i * 3 + 5) & 0x0f], TABLE_S[(i & 0x03) + 8], TABLE_T[i + 32]);
-        }
+        func_hh(st[0], st[1], st[2], st[3], x[5], TABLE_S[8], TABLE_T[32]);
+        func_hh(st[3], st[0], st[1], st[2], x[8], TABLE_S[9], TABLE_T[33]);
+        func_hh(st[2], st[3], st[0], st[1], x[11], TABLE_S[10], TABLE_T[34]);
+        func_hh(st[1], st[2], st[3], st[0], x[14], TABLE_S[11], TABLE_T[35]);
+        func_hh(st[0], st[1], st[2], st[3], x[1], TABLE_S[8], TABLE_T[36]);
+        func_hh(st[3], st[0], st[1], st[2], x[4], TABLE_S[9], TABLE_T[37]);
+        func_hh(st[2], st[3], st[0], st[1], x[7], TABLE_S[10], TABLE_T[38]);
+        func_hh(st[1], st[2], st[3], st[0], x[10], TABLE_S[11], TABLE_T[39]);
+        func_hh(st[0], st[1], st[2], st[3], x[13], TABLE_S[8], TABLE_T[40]);
+        func_hh(st[3], st[0], st[1], st[2], x[0], TABLE_S[9], TABLE_T[41]);
+        func_hh(st[2], st[3], st[0], st[1], x[3], TABLE_S[10], TABLE_T[42]);
+        func_hh(st[1], st[2], st[3], st[0], x[6], TABLE_S[11], TABLE_T[43]);
+        func_hh(st[0], st[1], st[2], st[3], x[9], TABLE_S[8], TABLE_T[44]);
+        func_hh(st[3], st[0], st[1], st[2], x[12], TABLE_S[9], TABLE_T[45]);
+        func_hh(st[2], st[3], st[0], st[1], x[15], TABLE_S[10], TABLE_T[46]);
+        func_hh(st[1], st[2], st[3], st[0], x[2], TABLE_S[11], TABLE_T[47]);
 
         // round 4
-        for (std::size_t i = 0; i < 16; i++)
-        {
-            func_ii(st[(16 - i) & 0x03], st[(17 - i) & 0x03], st[(18 - i) & 0x03], st[(19 - i) & 0x03],
-                x[(i * 7) & 0x0f], TABLE_S[(i & 0x03) + 12], TABLE_T[i + 48]);
-        }
+        func_ii(st[0], st[1], st[2], st[3], x[0], TABLE_S[12], TABLE_T[48]);
+        func_ii(st[3], st[0], st[1], st[2], x[7], TABLE_S[13], TABLE_T[49]);
+        func_ii(st[2], st[3], st[0], st[1], x[14], TABLE_S[14], TABLE_T[50]);
+        func_ii(st[1], st[2], st[3], st[0], x[5], TABLE_S[15], TABLE_T[51]);
+        func_ii(st[0], st[1], st[2], st[3], x[12], TABLE_S[12], TABLE_T[52]);
+        func_ii(st[3], st[0], st[1], st[2], x[3], TABLE_S[13], TABLE_T[53]);
+        func_ii(st[2], st[3], st[0], st[1], x[10], TABLE_S[14], TABLE_T[54]);
+        func_ii(st[1], st[2], st[3], st[0], x[1], TABLE_S[15], TABLE_T[55]);
+        func_ii(st[0], st[1], st[2], st[3], x[8], TABLE_S[12], TABLE_T[56]);
+        func_ii(st[3], st[0], st[1], st[2], x[15], TABLE_S[13], TABLE_T[57]);
+        func_ii(st[2], st[3], st[0], st[1], x[6], TABLE_S[14], TABLE_T[58]);
+        func_ii(st[1], st[2], st[3], st[0], x[13], TABLE_S[15], TABLE_T[59]);
+        func_ii(st[0], st[1], st[2], st[3], x[4], TABLE_S[12], TABLE_T[60]);
+        func_ii(st[3], st[0], st[1], st[2], x[11], TABLE_S[13], TABLE_T[61]);
+        func_ii(st[2], st[3], st[0], st[1], x[2], TABLE_S[14], TABLE_T[62]);
+        func_ii(st[1], st[2], st[3], st[0], x[9], TABLE_S[15], TABLE_T[63]);
 
         state[0] += st[0];
         state[1] += st[1];
@@ -127,14 +171,9 @@ private:
     template <detail::byte_char_cpt B>
     constexpr std::span<const B> consume_long(std::span<const B> input, std::span<std::uint32_t, 4> state) const noexcept
     {
-        std::array<std::uint32_t, BLOCK_SIZE / 4> x{};
         while (input.size() >= BLOCK_SIZE)
         {
-            for (auto& x_val : x)
-            {
-                x_val = detail::read_integral<std::uint32_t>(input);
-            }
-
+            auto x = detail::read_array<std::uint32_t, BLOCK_SIZE / 4>(input);
             transform(x, state);
         }
         return input;
@@ -189,10 +228,8 @@ public:
         std::array<std::uint8_t, 4> remain{};
         std::span<const std::uint8_t> buffer = m_buffer;
         std::size_t x_front_size = m_buffer_size / 4; // m_buffer_size < BLOCK_SIZE
-        for (std::size_t i = 0; i < X_SIZE; i++)
+        for (std::size_t i = 0; i < x_front_size; i++)
         {
-            if (i >= x_front_size)
-                break;
             x[i] = detail::read_integral<std::uint32_t>(buffer);
         }
         std::size_t x_remain = m_buffer_size % 4;
