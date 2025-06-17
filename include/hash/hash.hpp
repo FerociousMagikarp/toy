@@ -3,7 +3,7 @@
 #include <concepts>
 #include <span>
 #include <string_view>
-#include <cstring>
+#include <algorithm>
 #include <bit>
 
 namespace toy
@@ -23,33 +23,31 @@ constexpr bool always_false = false;
 template <std::unsigned_integral T, byte_char_cpt B>
 constexpr T cast_from_bytes(std::span<const B, sizeof(T)> val) noexcept
 {
-    if (std::is_constant_evaluated())
+    if constexpr (std::endian::native == std::endian::little)
     {
-        return[val]<std::size_t... Idx>(std::index_sequence<Idx...>) -> T
-        {
-            if constexpr (std::endian::native == std::endian::little)
-                return static_cast<T>(((static_cast<T>(val[Idx]) << (Idx * 8)) | ...));
-            else
-                return static_cast<T>(((static_cast<T>(val[Idx]) << ((sizeof(T) - 1 - Idx) * 8)) | ...));
-        } (std::make_index_sequence<sizeof(T)>());
+        std::array<B, sizeof(T)> arr;
+        std::copy(val.begin(), val.end(), arr.begin());
+        return std::bit_cast<T>(arr);
     }
     else
     {
-        T res{};
-        std::memcpy(std::addressof(res), val.data(), sizeof(T));
-        if constexpr (std::endian::native == std::endian::big)
+        return[val]<std::size_t... Idx>(std::index_sequence<Idx...>) -> T
         {
-            // TODO
-            static_assert(always_false<T>);
-        }
-        return res;
+            return static_cast<T>(((static_cast<T>(val[Idx]) << ((sizeof(T) - 1 - Idx) * 8)) | ...));
+        } (std::make_index_sequence<sizeof(T)>());
     }
 }
 
 template <std::unsigned_integral T, std::size_t N, byte_char_cpt B>
 constexpr std::array<T, N> cast_from_bytes(std::span<const B, sizeof(T) * N> val) noexcept
 {
-    if (std::is_constant_evaluated())
+    if constexpr (std::endian::native == std::endian::little)
+    {
+        std::array<B, sizeof(T) * N> arr;
+        std::copy(val.begin(), val.end(), arr.begin());
+        return std::bit_cast<std::array<T, N>>(arr);
+    }
+    else
     {
         std::array<T, N> res{};
         std::span<const B> data = val;
@@ -57,17 +55,6 @@ constexpr std::array<T, N> cast_from_bytes(std::span<const B, sizeof(T) * N> val
         {
             res[i] = cast_from_bytes<T>(data.template first<sizeof(T)>());
             data = data.subspan(sizeof(T));
-        }
-        return res;
-    }
-    else
-    {
-        std::array<T, N> res{};
-        std::memcpy(res.data(), val.data(), sizeof(T) * N);
-        if constexpr (std::endian::native == std::endian::big)
-        {
-            // TODO
-            static_assert(always_false<T>);
         }
         return res;
     }
@@ -87,6 +74,40 @@ constexpr std::array<T, N> read_array(std::span<const B>& val) noexcept
     auto val_first = val.template first<sizeof(T) * N>();
     val = val.subspan(sizeof(T) * N);
     return cast_from_bytes<T, N>(val_first);
+}
+
+template <byte_char_cpt B, std::size_t MAX_BUFFER_SIZE, typename F>
+constexpr void update_buffer(std::span<const B> input, std::array<std::uint8_t, MAX_BUFFER_SIZE>& buffer, std::size_t& buffer_size, F&& consume_func) noexcept
+{
+    if (input.empty())
+        return;
+
+    if (buffer_size + input.size() < MAX_BUFFER_SIZE)
+    {
+        std::copy(input.begin(), input.end(), buffer.begin() + buffer_size);
+        buffer_size += input.size();
+        return;
+    }
+
+    if (buffer_size > 0)
+    {
+        std::size_t copy_count = MAX_BUFFER_SIZE - buffer_size;
+        std::copy(input.begin(), input.begin() + copy_count, buffer.begin() + buffer_size);
+        input = input.subspan(copy_count);
+        consume_func(std::span<const std::uint8_t>{buffer});
+        buffer_size = 0;
+    }
+
+    if (input.size() >= MAX_BUFFER_SIZE)
+    {
+        input = consume_func(input);
+    }
+
+    if (!input.empty())
+    {
+        std::copy(input.begin(), input.end(), buffer.begin());
+        buffer_size = input.size();
+    }
 }
 
 template<std::size_t N> struct _hash_result_base;

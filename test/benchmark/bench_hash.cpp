@@ -8,37 +8,43 @@
 
 using namespace toy;
 
-template <detail::byte_char_cpt B>
-void bench_hash(ankerl::nanobench::Bench& bench, std::basic_string_view<B> content)
+template <typename StrView>
+    requires (std::is_same_v<std::decay_t<StrView>, std::string_view>
+                || std::is_same_v<std::decay_t<StrView>, std::u8string_view>)
+void bench_hash(ankerl::nanobench::Bench& bench, StrView content)
 {
-    bench.minEpochIterations(65536);
-
-    bench.run("xxhash32", [&] {
+    bench.run("xxhash32", [content]() -> void
+    {
         auto val = hash<xxhash32>().update(content).result();
         ankerl::nanobench::doNotOptimizeAway(val);
     });
 
-    bench.run("xxhash64", [&] {
+    bench.run("xxhash64", [content]() -> void
+    {
         auto val = hash<xxhash64>().update(content).result();
         ankerl::nanobench::doNotOptimizeAway(val);
     });
 
-    bench.run("fnv1a_32", [&] {
+    bench.run("fnv1a_32", [content]() -> void
+    {
         auto val = hash<fnv1a_32>().update(content).result();
         ankerl::nanobench::doNotOptimizeAway(val);
     });
 
-    bench.run("fnv1a_64", [&] {
+    bench.run("fnv1a_64", [content]() -> void
+    {
         auto val = hash<fnv1a_64>().update(content).result();
         ankerl::nanobench::doNotOptimizeAway(val);
     });
 
-    bench.run("md4", [&] {
+    bench.run("md4", [content]() -> void
+    {
         auto val = hash<md4>().update(content).result();
         ankerl::nanobench::doNotOptimizeAway(val);
     });
 
-    bench.run("md5", [&] {
+    bench.run("md5", [content] () -> void
+    {
         auto val = hash<md5>().update(content).result();
         ankerl::nanobench::doNotOptimizeAway(val);
     });

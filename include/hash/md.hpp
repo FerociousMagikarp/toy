@@ -4,14 +4,12 @@
 
 namespace toy
 {
-// from https://www.ietf.org/rfc/rfc1320.txt
-class md4
+namespace detail
 {
-private:
-    constexpr static std::array<int, 12> TABLE_S =
-    {
-        3, 7, 11, 19, 3, 5, 9, 13, 3, 9, 11, 15,
-    };
+template <typename Derived>
+class md_base
+{
+protected:
     constexpr static std::size_t BLOCK_SIZE = 512 / 8;
 
     std::array<std::uint32_t, 4> m_state =
@@ -25,6 +23,28 @@ private:
     std::array<std::uint8_t, BLOCK_SIZE> m_buffer{};
     std::size_t m_buffer_size = 0;
     std::size_t m_total_len = 0;
+
+    template <byte_char_cpt B>
+    constexpr std::span<const B> consume_long(std::span<const B> input) noexcept;
+
+public:
+    template <detail::byte_char_cpt B>
+    constexpr void update(std::span<const B> input) noexcept;
+
+    constexpr hash_result_value<128> result() const noexcept;
+};
+
+} // namespace detail
+
+// from https://www.ietf.org/rfc/rfc1320.txt
+class md4 : public detail::md_base<md4>
+{
+    friend class detail::md_base<md4>;
+private:
+    constexpr static std::array<int, 12> TABLE_S =
+    {
+        3, 7, 11, 19, 3, 5, 9, 13, 3, 9, 11, 15,
+    };
 
     constexpr std::uint32_t func_f(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
     {
@@ -137,90 +157,12 @@ private:
 public:
     constexpr md4() noexcept {}
     constexpr ~md4() noexcept {}
-
-    template <detail::byte_char_cpt B>
-    constexpr void update(std::span<const B> input) noexcept
-    {
-        if (input.empty())
-            return;
-
-        m_total_len += input.size();
-
-        if (m_buffer_size + input.size() < BLOCK_SIZE)
-        {
-            std::copy(input.begin(), input.end(), m_buffer.begin() + m_buffer_size);
-            m_buffer_size += input.size();
-            return;
-        }
-
-        if (m_buffer_size > 0)
-        {
-            std::size_t copy_count = BLOCK_SIZE - m_buffer_size;
-            std::copy(input.begin(), input.begin() + copy_count, m_buffer.begin() + m_buffer_size);
-            input = input.subspan(copy_count);
-            consume_long(std::span<const std::uint8_t>(m_buffer), m_state);
-            m_buffer_size = 0;
-        }
-
-        if (input.size() >= BLOCK_SIZE)
-        {
-            input = consume_long(input, m_state);
-        }
-
-        if (!input.empty())
-        {
-            std::copy(input.begin(), input.end(), m_buffer.begin());
-            m_buffer_size = input.size();
-        }
-    }
-
-    constexpr hash_result_value<128> result() const noexcept
-    {
-        hash_result_value<128> res{};
-
-        constexpr std::size_t X_SIZE = BLOCK_SIZE / 4;
-        std::array<std::uint32_t, X_SIZE> x{};
-        std::array<std::uint8_t, 4> remain{};
-        std::span<const std::uint8_t> buffer = m_buffer;
-        std::size_t x_front_size = m_buffer_size / 4; // m_buffer_size < BLOCK_SIZE
-        for (std::size_t i = 0; i < x_front_size; i++)
-        {
-            x[i] = detail::read_integral<std::uint32_t>(buffer);
-        }
-        std::size_t x_remain = m_buffer_size % 4;
-        for (std::size_t i = 0; i < x_remain; i++)
-        {
-            remain[i] = m_buffer[m_buffer_size - x_remain + i];
-        }
-        remain[x_remain] = 0x80;
-        std::array<std::uint32_t, 4> state = m_state;
-        x[x_front_size] = detail::cast_from_bytes<std::uint32_t>(std::span<const std::uint8_t, 4>(remain));
-
-        if (m_buffer_size >= BLOCK_SIZE - 8)
-        {
-            transform(x, state);
-            x.fill(0);
-        }
-
-        // use bit count
-        x[X_SIZE - 2] = static_cast<std::uint32_t>(static_cast<std::uint64_t>(m_total_len) << 3);
-        x[X_SIZE - 1] = static_cast<std::uint32_t>(static_cast<std::uint64_t>(m_total_len) >> 29);
-
-        transform(x, state);
-
-        auto temp_state = std::bit_cast<std::array<std::uint8_t, 16>>(state);
-        std::reverse(temp_state.begin(), temp_state.end());
-
-        res.value = std::bit_cast<std::array<std::uint64_t, 2>>(temp_state);
-
-        return res;
-    }
-
 };
 
 // from https://www.ietf.org/rfc/rfc1321.txt
-class md5
+class md5 : public detail::md_base<md5>
 {
+    friend class detail::md_base<md5>;
 private:
     constexpr static std::array<std::uint32_t, 64> TABLE_T =
     {
@@ -237,19 +179,6 @@ private:
     {
         7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21,
     };
-    constexpr static std::size_t BLOCK_SIZE = 512 / 8;
-
-    std::array<std::uint32_t, 4> m_state =
-    {
-        std::bit_cast<std::uint32_t>(std::array<std::uint8_t, 4>{0x01, 0x23, 0x45, 0x67}),
-        std::bit_cast<std::uint32_t>(std::array<std::uint8_t, 4>{0x89, 0xab, 0xcd, 0xef}),
-        std::bit_cast<std::uint32_t>(std::array<std::uint8_t, 4>{0xfe, 0xdc, 0xba, 0x98}),
-        std::bit_cast<std::uint32_t>(std::array<std::uint8_t, 4>{0x76, 0x54, 0x32, 0x10}),
-    };
-
-    std::array<std::uint8_t, BLOCK_SIZE> m_buffer{};
-    std::size_t m_buffer_size = 0;
-    std::size_t m_total_len = 0;
 
     constexpr std::uint32_t func_f(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
     {
@@ -395,86 +324,77 @@ private:
 public:
     constexpr md5() noexcept {}
     constexpr ~md5() noexcept {}
-
-    template <detail::byte_char_cpt B>
-    constexpr void update(std::span<const B> input) noexcept
-    {
-        if (input.empty())
-            return;
-
-        m_total_len += input.size();
-
-        if (m_buffer_size + input.size() < BLOCK_SIZE)
-        {
-            std::copy(input.begin(), input.end(), m_buffer.begin() + m_buffer_size);
-            m_buffer_size += input.size();
-            return;
-        }
-
-        if (m_buffer_size > 0)
-        {
-            std::size_t copy_count = BLOCK_SIZE - m_buffer_size;
-            std::copy(input.begin(), input.begin() + copy_count, m_buffer.begin() + m_buffer_size);
-            input = input.subspan(copy_count);
-            consume_long(std::span<const std::uint8_t>(m_buffer), m_state);
-            m_buffer_size = 0;
-        }
-
-        if (input.size() >= BLOCK_SIZE)
-        {
-            input = consume_long(input, m_state);
-        }
-
-        if (!input.empty())
-        {
-            std::copy(input.begin(), input.end(), m_buffer.begin());
-            m_buffer_size = input.size();
-        }
-    }
-
-    constexpr hash_result_value<128> result() const noexcept
-    {
-        hash_result_value<128> res{};
-
-        constexpr std::size_t X_SIZE = BLOCK_SIZE / 4;
-        std::array<std::uint32_t, X_SIZE> x{};
-        std::array<std::uint8_t, 4> remain{};
-        std::span<const std::uint8_t> buffer = m_buffer;
-        std::size_t x_front_size = m_buffer_size / 4; // m_buffer_size < BLOCK_SIZE
-        for (std::size_t i = 0; i < x_front_size; i++)
-        {
-            x[i] = detail::read_integral<std::uint32_t>(buffer);
-        }
-        std::size_t x_remain = m_buffer_size % 4;
-        for (std::size_t i = 0; i < x_remain; i++)
-        {
-            remain[i] = m_buffer[m_buffer_size - x_remain + i];
-        }
-        remain[x_remain] = 0x80;
-        std::array<std::uint32_t, 4> state = m_state;
-        x[x_front_size] = detail::cast_from_bytes<std::uint32_t>(std::span<const std::uint8_t, 4>(remain));
-
-        if (m_buffer_size >= BLOCK_SIZE - 8)
-        {
-            transform(x, state);
-            x.fill(0);
-        }
-
-        // use bit count
-        x[X_SIZE - 2] = static_cast<std::uint32_t>(static_cast<std::uint64_t>(m_total_len) << 3);
-        x[X_SIZE - 1] = static_cast<std::uint32_t>(static_cast<std::uint64_t>(m_total_len) >> 29);
-
-        transform(x, state);
-
-        auto temp_state = std::bit_cast<std::array<std::uint8_t, 16>>(state);
-        std::reverse(temp_state.begin(), temp_state.end());
-
-        res.value = std::bit_cast<std::array<std::uint64_t, 2>>(temp_state);
-
-        return res;
-    }
-
 };
+
+namespace detail
+{
+template <typename Derived>
+template <byte_char_cpt B>
+constexpr std::span<const B> md_base<Derived>::consume_long(std::span<const B> input) noexcept
+{
+    while (input.size() >= BLOCK_SIZE)
+    {
+        auto x = detail::read_array<std::uint32_t, BLOCK_SIZE / 4>(input);
+        static_cast<const Derived*>(this)->transform(x, m_state);
+    }
+    return input;
+}
+
+template <typename Derived>
+template <detail::byte_char_cpt B>
+constexpr void md_base<Derived>::update(std::span<const B> input) noexcept
+{
+    m_total_len += input.size();
+    detail::update_buffer(input, m_buffer, m_buffer_size, [this]<detail::byte_char_cpt T>(std::span<const T> val) ->std::span<const T>
+    {
+        return consume_long(val);
+    });
+}
+
+template <typename Derived>
+constexpr hash_result_value<128> md_base<Derived>::result() const noexcept
+{
+    hash_result_value<128> res{};
+
+    constexpr std::size_t X_SIZE = BLOCK_SIZE / 4;
+    std::array<std::uint32_t, X_SIZE> x{};
+    std::array<std::uint8_t, 4> remain{};
+    std::span<const std::uint8_t> buffer = m_buffer;
+    std::size_t x_front_size = m_buffer_size / 4; // m_buffer_size < BLOCK_SIZE
+    for (std::size_t i = 0; i < x_front_size; i++)
+    {
+        x[i] = read_integral<std::uint32_t>(buffer);
+    }
+    std::size_t x_remain = m_buffer_size % 4;
+    for (std::size_t i = 0; i < x_remain; i++)
+    {
+        remain[i] = m_buffer[m_buffer_size - x_remain + i];
+    }
+    remain[x_remain] = 0x80;
+    std::array<std::uint32_t, 4> state = m_state;
+    x[x_front_size] = cast_from_bytes<std::uint32_t>(std::span<const std::uint8_t, 4>(remain));
+
+    if (m_buffer_size >= BLOCK_SIZE - 8)
+    {
+        static_cast<const Derived*>(this)->transform(x, state);
+        x.fill(0);
+    }
+
+    // use bit count
+    x[X_SIZE - 2] = static_cast<std::uint32_t>(static_cast<std::uint64_t>(m_total_len) << 3);
+    x[X_SIZE - 1] = static_cast<std::uint32_t>(static_cast<std::uint64_t>(m_total_len) >> 29);
+
+    static_cast<const Derived*>(this)->transform(x, state);
+
+    auto temp_state = std::bit_cast<std::array<std::uint8_t, 16>>(state);
+    std::reverse(temp_state.begin(), temp_state.end());
+
+    res.value = std::bit_cast<std::array<std::uint64_t, 2>>(temp_state);
+
+    return res;
+}
+
+} // namespace detail
 
 template <>
 struct hash_result<md4>

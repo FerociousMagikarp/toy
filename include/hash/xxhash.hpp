@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <algorithm>
 #include "hash.hpp"
 
 namespace toy
@@ -200,37 +199,11 @@ public:
     template <detail::byte_char_cpt B>
     constexpr void update(std::span<const B> input) noexcept
     {
-        if (input.empty())
-            return;
-
         m_total_len += input.size();
-
-        if (m_buffer_size + input.size() < MAX_BUFFER_SIZE)
+        detail::update_buffer(input, m_buffer, m_buffer_size, [this]<detail::byte_char_cpt T>(std::span<const T> val) -> std::span<const T>
         {
-            std::copy(input.begin(), input.end(), m_buffer.begin() + m_buffer_size);
-            m_buffer_size += input.size();
-            return;
-        }
-
-        if (m_buffer_size > 0)
-        {
-            std::size_t copy_count = MAX_BUFFER_SIZE - m_buffer_size;
-            std::copy(input.begin(), input.begin() + copy_count, m_buffer.begin() + m_buffer_size);
-            input = input.subspan(copy_count);
-            consume_long(std::span<const std::uint8_t>{m_buffer});
-            m_buffer_size = 0;
-        }
-
-        if (input.size() >= MAX_BUFFER_SIZE)
-        {
-            input = consume_long(input);
-        }
-
-        if (!input.empty())
-        {
-            std::copy(input.begin(), input.end(), m_buffer.begin());
-            m_buffer_size = input.size();
-        }
+            return consume_long(val);
+        });
     }
 
     constexpr hash_result_value<N> result() const noexcept
