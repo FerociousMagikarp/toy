@@ -4,6 +4,219 @@
 
 namespace toy
 {
+// from https://www.ietf.org/rfc/rfc1320.txt
+class md4
+{
+private:
+    constexpr static std::array<int, 12> TABLE_S =
+    {
+        3, 7, 11, 19, 3, 5, 9, 13, 3, 9, 11, 15,
+    };
+    constexpr static std::size_t BLOCK_SIZE = 512 / 8;
+
+    std::array<std::uint32_t, 4> m_state =
+    {
+        std::bit_cast<std::uint32_t>(std::array<std::uint8_t, 4>{0x01, 0x23, 0x45, 0x67}),
+        std::bit_cast<std::uint32_t>(std::array<std::uint8_t, 4>{0x89, 0xab, 0xcd, 0xef}),
+        std::bit_cast<std::uint32_t>(std::array<std::uint8_t, 4>{0xfe, 0xdc, 0xba, 0x98}),
+        std::bit_cast<std::uint32_t>(std::array<std::uint8_t, 4>{0x76, 0x54, 0x32, 0x10}),
+    };
+
+    std::array<std::uint8_t, BLOCK_SIZE> m_buffer{};
+    std::size_t m_buffer_size = 0;
+    std::size_t m_total_len = 0;
+
+    constexpr std::uint32_t func_f(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    {
+        return (x & y) | (~x & z);
+    }
+
+    constexpr std::uint32_t func_g(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    {
+        return (x & y) | (x & z) | (y & z);
+    }
+
+    constexpr std::uint32_t func_h(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    {
+        return x ^ y ^ z;
+    }
+
+    constexpr void func_ff(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s) const noexcept
+    {
+        a += func_f(b, c, d) + x;
+        a = std::rotl(a, s);
+    }
+
+    constexpr void func_gg(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s) const noexcept
+    {
+        a += func_g(b, c, d) + x + 0x5a827999u;
+        a = std::rotl(a, s);
+    }
+
+    constexpr void func_hh(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s) const noexcept
+    {
+        a += func_h(b, c, d) + x + 0x6ed9eba1u;
+        a = std::rotl(a, s);
+    }
+
+    constexpr void transform(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> state) const noexcept
+    {
+        std::array<std::uint32_t, 4> st = { state[0], state[1], state[2], state[3] };
+
+        // round 1
+        func_ff(st[0], st[1], st[2], st[3], x[0], TABLE_S[0]);
+        func_ff(st[3], st[0], st[1], st[2], x[1], TABLE_S[1]);
+        func_ff(st[2], st[3], st[0], st[1], x[2], TABLE_S[2]);
+        func_ff(st[1], st[2], st[3], st[0], x[3], TABLE_S[3]);
+        func_ff(st[0], st[1], st[2], st[3], x[4], TABLE_S[0]);
+        func_ff(st[3], st[0], st[1], st[2], x[5], TABLE_S[1]);
+        func_ff(st[2], st[3], st[0], st[1], x[6], TABLE_S[2]);
+        func_ff(st[1], st[2], st[3], st[0], x[7], TABLE_S[3]);
+        func_ff(st[0], st[1], st[2], st[3], x[8], TABLE_S[0]);
+        func_ff(st[3], st[0], st[1], st[2], x[9], TABLE_S[1]);
+        func_ff(st[2], st[3], st[0], st[1], x[10], TABLE_S[2]);
+        func_ff(st[1], st[2], st[3], st[0], x[11], TABLE_S[3]);
+        func_ff(st[0], st[1], st[2], st[3], x[12], TABLE_S[0]);
+        func_ff(st[3], st[0], st[1], st[2], x[13], TABLE_S[1]);
+        func_ff(st[2], st[3], st[0], st[1], x[14], TABLE_S[2]);
+        func_ff(st[1], st[2], st[3], st[0], x[15], TABLE_S[3]);
+
+        // round 2
+        func_gg(st[0], st[1], st[2], st[3], x[0], TABLE_S[4]);
+        func_gg(st[3], st[0], st[1], st[2], x[4], TABLE_S[5]);
+        func_gg(st[2], st[3], st[0], st[1], x[8], TABLE_S[6]);
+        func_gg(st[1], st[2], st[3], st[0], x[12], TABLE_S[7]);
+        func_gg(st[0], st[1], st[2], st[3], x[1], TABLE_S[4]);
+        func_gg(st[3], st[0], st[1], st[2], x[5], TABLE_S[5]);
+        func_gg(st[2], st[3], st[0], st[1], x[9], TABLE_S[6]);
+        func_gg(st[1], st[2], st[3], st[0], x[13], TABLE_S[7]);
+        func_gg(st[0], st[1], st[2], st[3], x[2], TABLE_S[4]);
+        func_gg(st[3], st[0], st[1], st[2], x[6], TABLE_S[5]);
+        func_gg(st[2], st[3], st[0], st[1], x[10], TABLE_S[6]);
+        func_gg(st[1], st[2], st[3], st[0], x[14], TABLE_S[7]);
+        func_gg(st[0], st[1], st[2], st[3], x[3], TABLE_S[4]);
+        func_gg(st[3], st[0], st[1], st[2], x[7], TABLE_S[5]);
+        func_gg(st[2], st[3], st[0], st[1], x[11], TABLE_S[6]);
+        func_gg(st[1], st[2], st[3], st[0], x[15], TABLE_S[7]);
+
+        // round 3
+        func_hh(st[0], st[1], st[2], st[3], x[0], TABLE_S[8]);
+        func_hh(st[3], st[0], st[1], st[2], x[8], TABLE_S[9]);
+        func_hh(st[2], st[3], st[0], st[1], x[4], TABLE_S[10]);
+        func_hh(st[1], st[2], st[3], st[0], x[12], TABLE_S[11]);
+        func_hh(st[0], st[1], st[2], st[3], x[2], TABLE_S[8]);
+        func_hh(st[3], st[0], st[1], st[2], x[10], TABLE_S[9]);
+        func_hh(st[2], st[3], st[0], st[1], x[6], TABLE_S[10]);
+        func_hh(st[1], st[2], st[3], st[0], x[14], TABLE_S[11]);
+        func_hh(st[0], st[1], st[2], st[3], x[1], TABLE_S[8]);
+        func_hh(st[3], st[0], st[1], st[2], x[9], TABLE_S[9]);
+        func_hh(st[2], st[3], st[0], st[1], x[5], TABLE_S[10]);
+        func_hh(st[1], st[2], st[3], st[0], x[13], TABLE_S[11]);
+        func_hh(st[0], st[1], st[2], st[3], x[3], TABLE_S[8]);
+        func_hh(st[3], st[0], st[1], st[2], x[11], TABLE_S[9]);
+        func_hh(st[2], st[3], st[0], st[1], x[7], TABLE_S[10]);
+        func_hh(st[1], st[2], st[3], st[0], x[15], TABLE_S[11]);
+
+        state[0] += st[0];
+        state[1] += st[1];
+        state[2] += st[2];
+        state[3] += st[3];
+    }
+
+    template <detail::byte_char_cpt B>
+    constexpr std::span<const B> consume_long(std::span<const B> input, std::span<std::uint32_t, 4> state) const noexcept
+    {
+        while (input.size() >= BLOCK_SIZE)
+        {
+            auto x = detail::read_array<std::uint32_t, BLOCK_SIZE / 4>(input);
+            transform(x, state);
+        }
+        return input;
+    }
+
+public:
+    constexpr md4() noexcept {}
+    constexpr ~md4() noexcept {}
+
+    template <detail::byte_char_cpt B>
+    constexpr void update(std::span<const B> input) noexcept
+    {
+        if (input.empty())
+            return;
+
+        m_total_len += input.size();
+
+        if (m_buffer_size + input.size() < BLOCK_SIZE)
+        {
+            std::copy(input.begin(), input.end(), m_buffer.begin() + m_buffer_size);
+            m_buffer_size += input.size();
+            return;
+        }
+
+        if (m_buffer_size > 0)
+        {
+            std::size_t copy_count = BLOCK_SIZE - m_buffer_size;
+            std::copy(input.begin(), input.begin() + copy_count, m_buffer.begin() + m_buffer_size);
+            input = input.subspan(copy_count);
+            consume_long(std::span<const std::uint8_t>(m_buffer), m_state);
+            m_buffer_size = 0;
+        }
+
+        if (input.size() >= BLOCK_SIZE)
+        {
+            input = consume_long(input, m_state);
+        }
+
+        if (!input.empty())
+        {
+            std::copy(input.begin(), input.end(), m_buffer.begin());
+            m_buffer_size = input.size();
+        }
+    }
+
+    constexpr hash_result_value<128> result() const noexcept
+    {
+        hash_result_value<128> res{};
+
+        constexpr std::size_t X_SIZE = BLOCK_SIZE / 4;
+        std::array<std::uint32_t, X_SIZE> x{};
+        std::array<std::uint8_t, 4> remain{};
+        std::span<const std::uint8_t> buffer = m_buffer;
+        std::size_t x_front_size = m_buffer_size / 4; // m_buffer_size < BLOCK_SIZE
+        for (std::size_t i = 0; i < x_front_size; i++)
+        {
+            x[i] = detail::read_integral<std::uint32_t>(buffer);
+        }
+        std::size_t x_remain = m_buffer_size % 4;
+        for (std::size_t i = 0; i < x_remain; i++)
+        {
+            remain[i] = m_buffer[m_buffer_size - x_remain + i];
+        }
+        remain[x_remain] = 0x80;
+        std::array<std::uint32_t, 4> state = m_state;
+        x[x_front_size] = detail::cast_from_bytes<std::uint32_t>(std::span<const std::uint8_t, 4>(remain));
+
+        if (m_buffer_size >= BLOCK_SIZE - 8)
+        {
+            transform(x, state);
+            x.fill(0);
+        }
+
+        // use bit count
+        x[X_SIZE - 2] = static_cast<std::uint32_t>(static_cast<std::uint64_t>(m_total_len) << 3);
+        x[X_SIZE - 1] = static_cast<std::uint32_t>(static_cast<std::uint64_t>(m_total_len) >> 29);
+
+        transform(x, state);
+
+        auto temp_state = std::bit_cast<std::array<std::uint8_t, 16>>(state);
+        std::reverse(temp_state.begin(), temp_state.end());
+
+        res.value = std::bit_cast<std::array<std::uint64_t, 2>>(temp_state);
+
+        return res;
+    }
+
+};
 
 // from https://www.ietf.org/rfc/rfc1321.txt
 class md5
@@ -261,6 +474,12 @@ public:
         return res;
     }
 
+};
+
+template <>
+struct hash_result<md4>
+{
+    using type = hash_result_value<128>;
 };
 
 template <>
