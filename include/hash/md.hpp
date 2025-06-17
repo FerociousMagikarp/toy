@@ -347,7 +347,7 @@ constexpr void md_base<Derived>::update(std::span<const B> input) noexcept
     m_total_len += input.size();
     detail::update_buffer(input, m_buffer, m_buffer_size, [this]<detail::byte_char_cpt T>(std::span<const T> val) ->std::span<const T>
     {
-        return consume_long(val);
+        return this->consume_long(val);
     });
 }
 
