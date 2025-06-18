@@ -37,6 +37,13 @@ void bench_hash(ankerl::nanobench::Bench& bench, StrView content)
         ankerl::nanobench::doNotOptimizeAway(val);
     });
 
+    // md2 is too slow to benchmark
+    // bench.run("md2", [content]() -> void
+    // {
+    //     auto val = hash<md2>().update(content).result();
+    //     ankerl::nanobench::doNotOptimizeAway(val);
+    // });
+
     bench.run("md4", [content]() -> void
     {
         auto val = hash<md4>().update(content).result();

@@ -36,6 +36,124 @@ public:
 
 } // namespace detail
 
+// from https://www.ietf.org/rfc/rfc1319.txt
+class md2
+{
+private:
+    constexpr static std::array<std::uint8_t, 256> PI_SUBST =
+    {
+        41, 46, 67, 201, 162, 216, 124, 1, 61, 54, 84, 161, 236, 240, 6,
+        19, 98, 167, 5, 243, 192, 199, 115, 140, 152, 147, 43, 217, 188,
+        76, 130, 202, 30, 155, 87, 60, 253, 212, 224, 22, 103, 66, 111, 24,
+        138, 23, 229, 18, 190, 78, 196, 214, 218, 158, 222, 73, 160, 251,
+        245, 142, 187, 47, 238, 122, 169, 104, 121, 145, 21, 178, 7, 63,
+        148, 194, 16, 137, 11, 34, 95, 33, 128, 127, 93, 154, 90, 144, 50,
+        39, 53, 62, 204, 231, 191, 247, 151, 3, 255, 25, 48, 179, 72, 165,
+        181, 209, 215, 94, 146, 42, 172, 86, 170, 198, 79, 184, 56, 210,
+        150, 164, 125, 182, 118, 252, 107, 226, 156, 116, 4, 241, 69, 157,
+        112, 89, 100, 113, 135, 32, 134, 91, 207, 101, 230, 45, 168, 2, 27,
+        96, 37, 173, 174, 176, 185, 246, 28, 70, 97, 105, 52, 64, 126, 15,
+        85, 71, 163, 35, 221, 81, 175, 58, 195, 92, 249, 206, 186, 197,
+        234, 38, 44, 83, 13, 110, 133, 40, 132, 9, 211, 223, 205, 244, 65,
+        129, 77, 82, 106, 220, 55, 200, 108, 193, 171, 250, 36, 225, 123,
+        8, 12, 189, 177, 74, 120, 136, 149, 139, 227, 99, 232, 109, 233,
+        203, 213, 254, 59, 0, 29, 57, 242, 239, 183, 14, 102, 88, 208, 228,
+        166, 119, 114, 248, 235, 117, 75, 10, 49, 68, 80, 180, 143, 237,
+        31, 26, 219, 153, 141, 51, 159, 17, 131, 20
+    };
+
+    constexpr static std::size_t BLOCK_SIZE = 16;
+    constexpr static std::size_t X_SIZE = 48;
+
+    std::array<std::uint8_t, BLOCK_SIZE> m_buffer{};
+    std::size_t m_buffer_size = 0;
+    std::array<std::uint8_t, X_SIZE> m_x{};
+    std::array<std::uint8_t, BLOCK_SIZE> m_checksum{};
+
+    template <detail::byte_char_cpt B>
+    constexpr void transform(std::span<const B, BLOCK_SIZE> input, std::span<std::uint8_t, X_SIZE> x) const noexcept
+    {
+        for (std::size_t i = 0; i < BLOCK_SIZE; i++)
+        {
+            x[16 + i] = static_cast<std::uint8_t>(input[i]);
+            x[32 + i] = x[16 + i] ^ x[i];
+        }
+
+        constexpr std::uint8_t ROUND_COUNT = 18;
+        std::uint8_t t = 0;
+        for (std::uint8_t i = 0; i < ROUND_COUNT; i++)
+        {
+            for (std::uint8_t& x_val : x)
+            {
+                x_val = x_val ^ PI_SUBST[t];
+                t = x_val;
+            }
+            t += i;
+        }
+    }
+
+    template <detail::byte_char_cpt B>
+    constexpr void make_checksum(std::span<const B, BLOCK_SIZE> input, std::span<std::uint8_t, BLOCK_SIZE> checksum) const noexcept
+    {
+        std::uint8_t l = checksum.back();
+
+        for (std::size_t i = 0; i < BLOCK_SIZE; i++)
+        {
+            auto c = static_cast<std::uint8_t>(input[i]);
+            checksum[i] ^= PI_SUBST[c ^ l];
+            l = checksum[i];
+        }
+    }
+
+    template <detail::byte_char_cpt B>
+    constexpr std::span<const B> consume_long(std::span<const B> input) noexcept
+    {
+        while (input.size() >= BLOCK_SIZE)
+        {
+            auto block = input.template first<BLOCK_SIZE>();
+            input = input.subspan(BLOCK_SIZE);
+
+            make_checksum(block, m_checksum);
+            transform(block, m_x);
+        }
+
+        return input;
+    }
+
+public:
+    template <detail::byte_char_cpt B>
+    constexpr void update(std::span<const B> input) noexcept
+    {
+        detail::update_buffer(input, m_buffer, m_buffer_size, [this]<detail::byte_char_cpt T>(std::span<const T> val) -> std::span<const T>
+        {
+            return this->consume_long(val);
+        });
+    }
+
+    constexpr hash_result_value<128> result() const noexcept
+    {
+        hash_result_value<128> res{};
+
+        std::array<std::uint8_t, X_SIZE> x_copy = m_x;
+        std::array<std::uint8_t, BLOCK_SIZE * 2> data{};
+        std::copy(m_buffer.begin(), m_buffer.begin() + m_buffer_size, data.begin());
+        std::fill(data.begin() + m_buffer_size, data.begin() + BLOCK_SIZE, static_cast<std::uint8_t>(BLOCK_SIZE - m_buffer_size));
+        std::copy(m_checksum.begin(), m_checksum.end(), data.begin() + BLOCK_SIZE);
+
+        make_checksum(std::span<const std::uint8_t, BLOCK_SIZE>(data.cbegin(), data.cbegin() + BLOCK_SIZE),
+            std::span<std::uint8_t, BLOCK_SIZE>(data.begin() + BLOCK_SIZE, data.end()));
+        transform(std::span<const std::uint8_t, BLOCK_SIZE>(data.cbegin(), data.cbegin() + BLOCK_SIZE), x_copy);
+        transform(std::span<const std::uint8_t, BLOCK_SIZE>(data.cbegin() + BLOCK_SIZE, data.cend()), x_copy);
+
+        std::array<std::uint8_t, 16> res_val{};
+        std::copy(x_copy.begin(), x_copy.begin() + 16, res_val.begin());
+        std::reverse(res_val.begin(), res_val.end());
+        res.value = std::bit_cast<std::array<std::uint64_t, 2>>(res_val);
+
+        return res;
+    }
+};
+
 // from https://www.ietf.org/rfc/rfc1320.txt
 class md4 : public detail::md_base<md4>
 {
@@ -395,6 +513,12 @@ constexpr hash_result_value<128> md_base<Derived>::result() const noexcept
 }
 
 } // namespace detail
+
+template <>
+struct hash_result<md2>
+{
+    using type = hash_result_value<128>;
+};
 
 template <>
 struct hash_result<md4>

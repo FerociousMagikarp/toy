@@ -95,6 +95,38 @@ TEST_CASE("fnv1a_64")
     CHECK(hash<fnv1a_64>().update("a").update("a").result() == hash<fnv1a_64>().update("aa").result());
 }
 
+TEST_CASE("md2")
+{
+    static_assert(hash<md2>().update("a").result() == "32ec01ec4a6dac72c0ab96fb34c0b5d1"_hash_hex_128);
+    static_assert(hash<md2>().update("12345678901234567890123456789012345678901234567890123456789012345678901234567890").result() == "d5976f79d83d3a0dc9806c3c66f3efd8"_hash_hex_128);
+
+    CHECK(hash<md2>().update("").result() == "8350e5a3e24c153df2275c9f80692773"_hash_hex_128);
+    CHECK(hash<md2>().update("a").result() == "32ec01ec4a6dac72c0ab96fb34c0b5d1"_hash_hex_128);
+    CHECK(hash<md2>().update("abc").result() == "da853b0d3f88d99b30283a69e6ded6bb"_hash_hex_128);
+    CHECK(hash<md2>().update("message digest").result() == "ab4f496bfb2a530b219ff33031fe06b0"_hash_hex_128);
+    CHECK(hash<md2>().update("abcdefghijklmnopqrstuvwxyz").result() == "4e8ddff3650292ab5a4108c3aa47940b"_hash_hex_128);
+    CHECK(hash<md2>().update("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789").result() == "da33def2a42df13975352846c30338cd"_hash_hex_128);
+    CHECK(hash<md2>().update("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.").result() == "d12f3647dff5c86f003bb3014f8f18eb"_hash_hex_128);
+    CHECK(hash<md2>().update("12345678901234567890123456789012345678901234567890123456789012345678901234567890").result() == "d5976f79d83d3a0dc9806c3c66f3efd8"_hash_hex_128);
+
+    CHECK(hash<md2>().update(u8"测试").result() == "a8d6fb5a5735c294e9fb41ba8ae98eaf"_hash_hex_128);
+
+    auto hash_test_1 = hash<md2>();
+    CHECK(hash_test_1.result() == "8350e5a3e24c153df2275c9f80692773"_hash_hex_128);
+    hash_test_1.update("a");
+    CHECK(hash_test_1.result() == "32ec01ec4a6dac72c0ab96fb34c0b5d1"_hash_hex_128);
+    hash_test_1.update("bc");
+    CHECK(hash_test_1.result() == "da853b0d3f88d99b30283a69e6ded6bb"_hash_hex_128);
+    hash_test_1.update("defghijklmnopqrstuvwxyz");
+    CHECK(hash_test_1.result() == "4e8ddff3650292ab5a4108c3aa47940b"_hash_hex_128);
+    hash_test_1.update("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+    CHECK(hash_test_1.result() == "c686ef70ed97e759bf217e4befd7fbd8"_hash_hex_128);
+    hash_test_1.update("");
+    CHECK(hash_test_1.result() == "c686ef70ed97e759bf217e4befd7fbd8"_hash_hex_128);
+    hash_test_1.update("345678901234567890");
+    CHECK(hash_test_1.result() == "ae3a12d8f20a4f020a4581942135d5ee"_hash_hex_128);
+}
+
 TEST_CASE("md4")
 {
     static_assert(hash<md4>().update("a").result() == "bde52cb31de33e46245e05fbdbd6fb24"_hash_hex_128);
