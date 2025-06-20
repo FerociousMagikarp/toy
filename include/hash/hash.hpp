@@ -121,6 +121,14 @@ consteval std::size_t _get_base_bit(std::size_t N)
     else return 8;
 }
 
+template <std::size_t N>
+consteval auto _get_all_char_0_arr()
+{
+    std::array<char, N> res{};
+    res.fill('0');
+    return res;
+}
+
 } // namespace detail
 
 template <std::size_t N>
@@ -142,8 +150,8 @@ struct hash_result_value
 
     std::string to_hexstring() const
     {
-        std::array<char, N / 4> res{};
-        res.fill('0');
+        constexpr auto res_init = detail::_get_all_char_0_arr<N / 4>();
+        std::array<char, N / 4> res = res_init;
         constexpr std::size_t base_char_count = base_bit / 4;
         using iter_t = typename decltype(res)::reverse_iterator;
         auto copy_to_res_func = [](iter_t res_begin, base_type val) -> void
@@ -172,7 +180,7 @@ struct hash_result_value
                 copy_to_res_func(iter, value[i]);
             }
         }
-        return std::string(res.data(), N / 4);
+        return std::string(res.begin(), res.end());
     }
 };
 
