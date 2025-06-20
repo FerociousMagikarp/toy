@@ -149,6 +149,8 @@ jobs:
               --gcov-executable "gcov-12 -l -p" \
               --exclude test/ \
               --exclude build/ \
+              --exclude-throw-branches \
+              --exclude-unreachable-branches \
               --xml coverage.xml \
               --html coverage.html \
               --html-details \

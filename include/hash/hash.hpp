@@ -129,6 +129,22 @@ consteval auto _get_all_char_0_arr()
     return res;
 }
 
+template <typename RIter, std::unsigned_integral T>
+void _copy_to_res_func(RIter res_begin, T val) noexcept
+{
+    while (val != 0)
+    {
+        auto data = static_cast<char>(val & 0x0f);
+        if (data < 10)
+            data += '0';
+        else
+            data += 'a' - 10;
+        *res_begin = data;
+        ++res_begin;
+        val >>= 4;
+    }
+};
+
 } // namespace detail
 
 template <std::size_t N>
@@ -153,31 +169,17 @@ struct hash_result_value
         constexpr auto res_init = detail::_get_all_char_0_arr<N / 4>();
         std::array<char, N / 4> res = res_init;
         constexpr std::size_t base_char_count = base_bit / 4;
-        using iter_t = typename decltype(res)::reverse_iterator;
-        auto copy_to_res_func = [](iter_t res_begin, base_type val) -> void
-        {
-            while (val != 0)
-            {
-                auto data = static_cast<char>(val & 0x0f);
-                if (data < 10)
-                    data += '0';
-                else
-                    data += 'a' - 10;
-                *res_begin = data;
-                ++res_begin;
-                val >>= 4;
-            }
-        };
+
         if constexpr (count == 1)
         {
-            copy_to_res_func(res.rbegin(), value);
+            detail::_copy_to_res_func(res.rbegin(), value);
         }
         else
         {
             for (std::size_t i = 0; i < count; i++)
             {
                 auto iter = res.rbegin() + (i * base_char_count);
-                copy_to_res_func(iter, value[i]);
+                detail::_copy_to_res_func(iter, value[i]);
             }
         }
         return std::string(res.begin(), res.end());
