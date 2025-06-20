@@ -5,6 +5,7 @@
 #include "hash/xxhash.hpp"
 #include "hash/fnv1a.hpp"
 #include "hash/md.hpp"
+#include "hash/murmurhash.hpp"
 
 using namespace toy;
 
@@ -56,6 +57,11 @@ void bench_hash(ankerl::nanobench::Bench& bench, StrView content)
         ankerl::nanobench::doNotOptimizeAway(val);
     });
 
+    bench.run("murmurhash1", [content] () -> void
+    {
+        auto val = hash<murmurhash1>()(content);
+        ankerl::nanobench::doNotOptimizeAway(val);
+    });
 }
 
 TEST_CASE("hash")

@@ -1,6 +1,7 @@
 #include "hash/xxhash.hpp"
 #include "hash/fnv1a.hpp"
 #include "hash/md.hpp"
+#include "hash/murmurhash.hpp"
 #include "doctest/doctest.h"
 
 namespace toy
@@ -207,4 +208,17 @@ TEST_CASE("md5")
     CHECK(hash_test_1.result() == "76658de2ac7d406f93dfbe8bb6d9f549"_hash_hex_128);
     hash_test_1.update("345678901234567890");
     CHECK(hash_test_1.result() == "2fba0860b3d8abfdee05ef2cc87812d2"_hash_hex_128);
+}
+
+TEST_CASE("murmurhash1")
+{
+    CHECK(hash<murmurhash1>(61755476)("") == "74d531ef"_hash_hex_32);
+    CHECK(hash<murmurhash1>()("a") == "872d28c5"_hash_hex_32);
+    CHECK(hash<murmurhash1>()("1234") == "f12e8bad"_hash_hex_32);
+    CHECK(hash<murmurhash1>()("abcdefghi") == "3a97264c"_hash_hex_32);
+    CHECK(hash<murmurhash1>()("abcdefghij") == "912e647a"_hash_hex_32);
+    CHECK(hash<murmurhash1>()("abcdefghijk") == "9b770060"_hash_hex_32);
+
+    CHECK(hash<murmurhash1>()(u8"测试") == "fcad7be1"_hash_hex_32);
+    CHECK(hash<murmurhash1>(900812297)(u8"结果是多少") == "5bb709b8"_hash_hex_32);
 }

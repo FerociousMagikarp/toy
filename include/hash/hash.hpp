@@ -365,6 +365,18 @@ public:
         return m_val.result();
     }
 
+    constexpr hash_result_t<T> operator()(std::string_view s) noexcept
+    {
+        m_val.update(std::span<const char>(s.data(), s.size()));
+        return m_val.result();
+    }
+
+    constexpr hash_result_t<T> operator()(std::u8string_view s) noexcept
+    {
+        m_val.update(std::span<const char8_t>(s.data(), s.size()));
+        return m_val.result();
+    }
+
 private:
     T m_val;
 };
