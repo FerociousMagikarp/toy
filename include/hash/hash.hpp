@@ -4,7 +4,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <charconv>
 #include <algorithm>
 #include <bit>
 
@@ -143,29 +142,37 @@ struct hash_result_value
 
     std::string to_hexstring() const
     {
-        std::string res(N / 4, '0');
+        std::array<char, N / 4> res{};
+        res.fill('0');
         constexpr std::size_t base_char_count = base_bit / 4;
-        using iter_t = typename std::string::iterator;
-        std::string temp(base_char_count, '\0');
-        auto copy_to_res_func = [&temp, this](iter_t res_begin, base_type val) -> void
+        using iter_t = typename decltype(res)::reverse_iterator;
+        auto copy_to_res_func = [](iter_t res_begin, base_type val) -> void
         {
-            auto result = std::to_chars(temp.data(), temp.data() + temp.size(), val, 16);
-            std::size_t size = result.ptr - temp.data();
-            std::copy(temp.begin(), temp.begin() + size, res_begin + (temp.size() - size));
+            while (val != 0)
+            {
+                auto data = static_cast<char>(val & 0x0f);
+                if (data < 10)
+                    data += '0';
+                else
+                    data += 'a' - 10;
+                *res_begin = data;
+                ++res_begin;
+                val >>= 4;
+            }
         };
         if constexpr (count == 1)
         {
-            copy_to_res_func(res.begin(), value);
+            copy_to_res_func(res.rbegin(), value);
         }
         else
         {
             for (std::size_t i = 0; i < count; i++)
             {
-                auto iter = res.begin() + (res.size() - (i + 1) * base_char_count);
+                auto iter = res.rbegin() + (i * base_char_count);
                 copy_to_res_func(iter, value[i]);
             }
         }
-        return res;
+        return std::string(res.data(), N / 4);
     }
 };
 

@@ -125,6 +125,9 @@ private:
     }
 
 public:
+    constexpr md2() noexcept {}
+    constexpr ~md2() noexcept {}
+
     template <detail::byte_char_cpt B>
     constexpr void update(std::span<const B> input) noexcept
     {
