@@ -63,19 +63,15 @@ constexpr std::array<T, N> cast_from_bytes(std::span<const B, sizeof(T) * N> val
 }
 
 template <std::unsigned_integral T, byte_char_cpt B>
-constexpr T read_integral(std::span<const B>& val) noexcept
+constexpr T cast_from_bytes_at_unsafe(std::span<const B> val, std::size_t index) noexcept
 {
-    auto val_first = val.template first<sizeof(T)>();
-    val = val.subspan(sizeof(T));
-    return cast_from_bytes<T>(val_first);
+    return cast_from_bytes<T>(std::span<const B, sizeof(T)>(val.data() + index, sizeof(T)));
 }
 
 template <std::unsigned_integral T, std::size_t N, byte_char_cpt B>
-constexpr std::array<T, N> read_array(std::span<const B>& val) noexcept
+constexpr std::array<T, N> cast_from_bytes_at_unsafe(std::span<const B> val, std::size_t index) noexcept
 {
-    auto val_first = val.template first<sizeof(T) * N>();
-    val = val.subspan(sizeof(T) * N);
-    return cast_from_bytes<T, N>(val_first);
+    return cast_from_bytes<T, N>(std::span<const B, sizeof(T) * N>(val.data() + index, sizeof(T) * N));
 }
 
 template <byte_char_cpt B, std::size_t MAX_BUFFER_SIZE, typename F>

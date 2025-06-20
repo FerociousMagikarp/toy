@@ -70,6 +70,16 @@ private:
     std::array<std::uint8_t, X_SIZE> m_x{};
     std::array<std::uint8_t, BLOCK_SIZE> m_checksum{};
 
+    constexpr static void transform_x(std::uint8_t& t, std::uint8_t i, std::span<std::uint8_t, X_SIZE> x) noexcept
+    {
+        for (std::uint8_t& x_val : x)
+        {
+            x_val = x_val ^ PI_SUBST[t];
+            t = x_val;
+        }
+        t += i;
+    }
+
     template <detail::byte_char_cpt B>
     constexpr void transform(std::span<const B, BLOCK_SIZE> input, std::span<std::uint8_t, X_SIZE> x) const noexcept
     {
@@ -80,16 +90,11 @@ private:
         }
 
         constexpr std::uint8_t ROUND_COUNT = 18;
-        std::uint8_t t = 0;
-        for (std::uint8_t i = 0; i < ROUND_COUNT; i++)
+        [x] <std::size_t... Index>(std::index_sequence<Index...>) -> void
         {
-            for (std::uint8_t& x_val : x)
-            {
-                x_val = x_val ^ PI_SUBST[t];
-                t = x_val;
-            }
-            t += i;
-        }
+            std::uint8_t t = 0;
+            (transform_x(t, static_cast<std::uint8_t>(Index), x), ...);
+        }(std::make_index_sequence<ROUND_COUNT>{});
     }
 
     template <detail::byte_char_cpt B>
@@ -108,16 +113,15 @@ private:
     template <detail::byte_char_cpt B>
     constexpr std::span<const B> consume_long(std::span<const B> input) noexcept
     {
-        while (input.size() >= BLOCK_SIZE)
+        for (std::size_t i = 0; i + BLOCK_SIZE <= input.size(); i += BLOCK_SIZE)
         {
-            auto block = input.template first<BLOCK_SIZE>();
-            input = input.subspan(BLOCK_SIZE);
+            auto block = std::span<const B, BLOCK_SIZE>(input.data() + i, BLOCK_SIZE);
 
             make_checksum(block, m_checksum);
             transform(block, m_x);
         }
 
-        return input;
+        return input.subspan(input.size() - input.size() % BLOCK_SIZE);
     }
 
 public:
@@ -164,112 +168,104 @@ private:
         3, 7, 11, 19, 3, 5, 9, 13, 3, 9, 11, 15,
     };
 
-    constexpr std::uint32_t func_f(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    constexpr static std::uint32_t func_f(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept
     {
         return (x & y) | (~x & z);
     }
 
-    constexpr std::uint32_t func_g(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    constexpr static std::uint32_t func_g(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept
     {
         return (x & y) | (x & z) | (y & z);
     }
 
-    constexpr std::uint32_t func_h(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    constexpr static std::uint32_t func_h(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept
     {
         return x ^ y ^ z;
     }
 
-    constexpr void func_ff(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s) const noexcept
+    constexpr static void func_ff(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s) noexcept
     {
         a += func_f(b, c, d) + x;
         a = std::rotl(a, s);
     }
 
-    constexpr void func_gg(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s) const noexcept
+    constexpr static void func_gg(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s) noexcept
     {
         a += func_g(b, c, d) + x + 0x5a827999u;
         a = std::rotl(a, s);
     }
 
-    constexpr void func_hh(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s) const noexcept
+    constexpr static void func_hh(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s) noexcept
     {
         a += func_h(b, c, d) + x + 0x6ed9eba1u;
         a = std::rotl(a, s);
+    }
+
+    template <std::uint8_t Index>
+    constexpr void transform_round_2(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> st) const noexcept
+    {
+        func_gg(st[(16 - Index) % 4], st[(17 - Index) % 4], st[(18 - Index) % 4], st[(19 - Index) % 4],
+            x[(Index * 4) % 16 + Index / 4], TABLE_S[Index % 4 + 4]);
+        if constexpr (Index < 15)
+            transform_round_2<Index + 1>(x, st);
+    }
+
+    template <std::uint8_t Index>
+    constexpr void transform_round_3(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> st) const noexcept
+    {
+        constexpr std::uint8_t X_INDEX_TEMP = ((Index >> 1) & 0x05) | ((Index & 0x05) << 1);
+        constexpr std::uint8_t X_INDEX = ((X_INDEX_TEMP >> 2) & 0x03) | ((X_INDEX_TEMP & 0x03) << 2);
+        func_hh(st[(16 - Index) % 4], st[(17 - Index) % 4], st[(18 - Index) % 4], st[(19 - Index) % 4],
+            x[X_INDEX], TABLE_S[Index % 4 + 8]);
+        if constexpr (Index < 15)
+            transform_round_3<Index + 1>(x, st);
+    }
+
+    constexpr void transform_round_1(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> st) const noexcept
+    {
+        [x, st] <std::size_t... Index> (std::index_sequence<Index...>) -> void
+        {
+            (func_ff(st[(16 - Index) % 4], st[(17 - Index) % 4], st[(18 - Index) % 4], st[(19 - Index) % 4],
+                x[Index], TABLE_S[Index % 4]), ...);
+        }(std::make_index_sequence<16>{});
+    }
+
+    constexpr void transform_round_2(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> st) const noexcept
+    {
+        [x, st] <std::size_t... Index> (std::index_sequence<Index...>) -> void
+        {
+            (func_gg(st[(16 - Index) % 4], st[(17 - Index) % 4], st[(18 - Index) % 4], st[(19 - Index) % 4],
+                x[(Index * 4) % 16 + Index / 4], TABLE_S[Index % 4 + 4]), ...);
+        }(std::make_index_sequence<16>{});
+    }
+
+    consteval static std::size_t get_transform_round_3_x_index(std::size_t index) noexcept
+    {
+        index = ((index >> 1) & 0x05) | ((index & 0x05) << 1);
+        return ((index >> 2) & 0x03) | ((index & 0x03) << 2);
+    }
+
+    constexpr void transform_round_3(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> st) const noexcept
+    {
+        [x, st] <std::size_t... Index> (std::index_sequence<Index...>) -> void
+        {
+            (func_hh(st[(16 - Index) % 4], st[(17 - Index) % 4], st[(18 - Index) % 4], st[(19 - Index) % 4],
+                x[get_transform_round_3_x_index(Index)], TABLE_S[Index % 4 + 8]), ...);
+        }(std::make_index_sequence<16>{});
     }
 
     constexpr void transform(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> state) const noexcept
     {
         std::array<std::uint32_t, 4> st = { state[0], state[1], state[2], state[3] };
 
-        // round 1
-        func_ff(st[0], st[1], st[2], st[3], x[0], TABLE_S[0]);
-        func_ff(st[3], st[0], st[1], st[2], x[1], TABLE_S[1]);
-        func_ff(st[2], st[3], st[0], st[1], x[2], TABLE_S[2]);
-        func_ff(st[1], st[2], st[3], st[0], x[3], TABLE_S[3]);
-        func_ff(st[0], st[1], st[2], st[3], x[4], TABLE_S[0]);
-        func_ff(st[3], st[0], st[1], st[2], x[5], TABLE_S[1]);
-        func_ff(st[2], st[3], st[0], st[1], x[6], TABLE_S[2]);
-        func_ff(st[1], st[2], st[3], st[0], x[7], TABLE_S[3]);
-        func_ff(st[0], st[1], st[2], st[3], x[8], TABLE_S[0]);
-        func_ff(st[3], st[0], st[1], st[2], x[9], TABLE_S[1]);
-        func_ff(st[2], st[3], st[0], st[1], x[10], TABLE_S[2]);
-        func_ff(st[1], st[2], st[3], st[0], x[11], TABLE_S[3]);
-        func_ff(st[0], st[1], st[2], st[3], x[12], TABLE_S[0]);
-        func_ff(st[3], st[0], st[1], st[2], x[13], TABLE_S[1]);
-        func_ff(st[2], st[3], st[0], st[1], x[14], TABLE_S[2]);
-        func_ff(st[1], st[2], st[3], st[0], x[15], TABLE_S[3]);
-
-        // round 2
-        func_gg(st[0], st[1], st[2], st[3], x[0], TABLE_S[4]);
-        func_gg(st[3], st[0], st[1], st[2], x[4], TABLE_S[5]);
-        func_gg(st[2], st[3], st[0], st[1], x[8], TABLE_S[6]);
-        func_gg(st[1], st[2], st[3], st[0], x[12], TABLE_S[7]);
-        func_gg(st[0], st[1], st[2], st[3], x[1], TABLE_S[4]);
-        func_gg(st[3], st[0], st[1], st[2], x[5], TABLE_S[5]);
-        func_gg(st[2], st[3], st[0], st[1], x[9], TABLE_S[6]);
-        func_gg(st[1], st[2], st[3], st[0], x[13], TABLE_S[7]);
-        func_gg(st[0], st[1], st[2], st[3], x[2], TABLE_S[4]);
-        func_gg(st[3], st[0], st[1], st[2], x[6], TABLE_S[5]);
-        func_gg(st[2], st[3], st[0], st[1], x[10], TABLE_S[6]);
-        func_gg(st[1], st[2], st[3], st[0], x[14], TABLE_S[7]);
-        func_gg(st[0], st[1], st[2], st[3], x[3], TABLE_S[4]);
-        func_gg(st[3], st[0], st[1], st[2], x[7], TABLE_S[5]);
-        func_gg(st[2], st[3], st[0], st[1], x[11], TABLE_S[6]);
-        func_gg(st[1], st[2], st[3], st[0], x[15], TABLE_S[7]);
-
-        // round 3
-        func_hh(st[0], st[1], st[2], st[3], x[0], TABLE_S[8]);
-        func_hh(st[3], st[0], st[1], st[2], x[8], TABLE_S[9]);
-        func_hh(st[2], st[3], st[0], st[1], x[4], TABLE_S[10]);
-        func_hh(st[1], st[2], st[3], st[0], x[12], TABLE_S[11]);
-        func_hh(st[0], st[1], st[2], st[3], x[2], TABLE_S[8]);
-        func_hh(st[3], st[0], st[1], st[2], x[10], TABLE_S[9]);
-        func_hh(st[2], st[3], st[0], st[1], x[6], TABLE_S[10]);
-        func_hh(st[1], st[2], st[3], st[0], x[14], TABLE_S[11]);
-        func_hh(st[0], st[1], st[2], st[3], x[1], TABLE_S[8]);
-        func_hh(st[3], st[0], st[1], st[2], x[9], TABLE_S[9]);
-        func_hh(st[2], st[3], st[0], st[1], x[5], TABLE_S[10]);
-        func_hh(st[1], st[2], st[3], st[0], x[13], TABLE_S[11]);
-        func_hh(st[0], st[1], st[2], st[3], x[3], TABLE_S[8]);
-        func_hh(st[3], st[0], st[1], st[2], x[11], TABLE_S[9]);
-        func_hh(st[2], st[3], st[0], st[1], x[7], TABLE_S[10]);
-        func_hh(st[1], st[2], st[3], st[0], x[15], TABLE_S[11]);
+        transform_round_1(x, st);
+        transform_round_2(x, st);
+        transform_round_3(x, st);
 
         state[0] += st[0];
         state[1] += st[1];
         state[2] += st[2];
         state[3] += st[3];
-    }
-
-    template <detail::byte_char_cpt B>
-    constexpr std::span<const B> consume_long(std::span<const B> input, std::span<std::uint32_t, 4> state) const noexcept
-    {
-        while (input.size() >= BLOCK_SIZE)
-        {
-            auto x = detail::read_array<std::uint32_t, BLOCK_SIZE / 4>(input);
-            transform(x, state);
-        }
-        return input;
     }
 
 public:
@@ -298,145 +294,103 @@ private:
         7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21,
     };
 
-    constexpr std::uint32_t func_f(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    constexpr static std::uint32_t func_f(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept
     {
         return (x & y) | (~x & z);
     }
 
-    constexpr std::uint32_t func_g(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    constexpr static std::uint32_t func_g(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept
     {
         return (x & z) | (y & ~z);
     }
 
-    constexpr std::uint32_t func_h(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    constexpr static std::uint32_t func_h(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept
     {
         return x ^ y ^ z;
     }
 
-    constexpr std::uint32_t func_i(std::uint32_t x, std::uint32_t y, std::uint32_t z) const noexcept
+    constexpr static std::uint32_t func_i(std::uint32_t x, std::uint32_t y, std::uint32_t z) noexcept
     {
         return y ^ (x | ~z);
     }
 
-    constexpr void func_ff(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s, std::uint32_t ac) const noexcept
+    constexpr static void func_ff(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s, std::uint32_t ac) noexcept
     {
         a += func_f(b, c, d) + x + ac;
         a = std::rotl(a, s);
         a += b;
     }
 
-    constexpr void func_gg(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s, std::uint32_t ac) const noexcept
+    constexpr static void func_gg(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s, std::uint32_t ac) noexcept
     {
         a += func_g(b, c, d) + x + ac;
         a = std::rotl(a, s);
         a += b;
     }
 
-    constexpr void func_hh(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s, std::uint32_t ac) const noexcept
+    constexpr static void func_hh(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s, std::uint32_t ac) noexcept
     {
         a += func_h(b, c, d) + x + ac;
         a = std::rotl(a, s);
         a += b;
     }
 
-    constexpr void func_ii(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s, std::uint32_t ac) const noexcept
+    constexpr static void func_ii(std::uint32_t& a, std::uint32_t b, std::uint32_t c, std::uint32_t d, std::uint32_t x, int s, std::uint32_t ac) noexcept
     {
         a += func_i(b, c, d) + x + ac;
         a = std::rotl(a, s);
         a += b;
     }
 
+    constexpr void transform_round_1(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> st) const noexcept
+    {
+        [x, st] <std::size_t... Index> (std::index_sequence<Index...>) -> void
+        {
+            (func_ff(st[(16 - Index) % 4], st[(17 - Index) % 4], st[(18 - Index) % 4], st[(19 - Index) % 4],
+                x[Index], TABLE_S[Index % 4], TABLE_T[Index]), ...);
+        }(std::make_index_sequence<16>{});
+    }
+
+    constexpr void transform_round_2(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> st) const noexcept
+    {
+        [x, st] <std::size_t... Index> (std::index_sequence<Index...>) -> void
+        {
+            (func_gg(st[(16 - Index) % 4], st[(17 - Index) % 4], st[(18 - Index) % 4], st[(19 - Index) % 4],
+                x[(Index * 5 + 1) % 16], TABLE_S[Index % 4 + 4], TABLE_T[Index + 16]), ...);
+        }(std::make_index_sequence<16>{});
+    }
+
+    constexpr void transform_round_3(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> st) const noexcept
+    {
+        [x, st] <std::size_t... Index> (std::index_sequence<Index...>) -> void
+        {
+            (func_hh(st[(16 - Index) % 4], st[(17 - Index) % 4], st[(18 - Index) % 4], st[(19 - Index) % 4],
+                x[(Index * 3 + 5) % 16], TABLE_S[Index % 4 + 8], TABLE_T[Index + 32]), ...);
+        }(std::make_index_sequence<16>{});
+    }
+
+    constexpr void transform_round_4(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> st) const noexcept
+    {
+        [x, st] <std::size_t... Index> (std::index_sequence<Index...>) -> void
+        {
+            (func_ii(st[(16 - Index) % 4], st[(17 - Index) % 4], st[(18 - Index) % 4], st[(19 - Index) % 4],
+                x[(Index * 7) % 16], TABLE_S[Index % 4 + 12], TABLE_T[Index + 48]), ...);
+        }(std::make_index_sequence<16>{});
+    }
+
     constexpr void transform(std::span<const std::uint32_t, 16> x, std::span<std::uint32_t, 4> state) const noexcept
     {
         std::array<std::uint32_t, 4> st = { state[0], state[1], state[2], state[3] };
 
-        // round 1
-        func_ff(st[0], st[1], st[2], st[3], x[0], TABLE_S[0], TABLE_T[0]);
-        func_ff(st[3], st[0], st[1], st[2], x[1], TABLE_S[1], TABLE_T[1]);
-        func_ff(st[2], st[3], st[0], st[1], x[2], TABLE_S[2], TABLE_T[2]);
-        func_ff(st[1], st[2], st[3], st[0], x[3], TABLE_S[3], TABLE_T[3]);
-        func_ff(st[0], st[1], st[2], st[3], x[4], TABLE_S[0], TABLE_T[4]);
-        func_ff(st[3], st[0], st[1], st[2], x[5], TABLE_S[1], TABLE_T[5]);
-        func_ff(st[2], st[3], st[0], st[1], x[6], TABLE_S[2], TABLE_T[6]);
-        func_ff(st[1], st[2], st[3], st[0], x[7], TABLE_S[3], TABLE_T[7]);
-        func_ff(st[0], st[1], st[2], st[3], x[8], TABLE_S[0], TABLE_T[8]);
-        func_ff(st[3], st[0], st[1], st[2], x[9], TABLE_S[1], TABLE_T[9]);
-        func_ff(st[2], st[3], st[0], st[1], x[10], TABLE_S[2], TABLE_T[10]);
-        func_ff(st[1], st[2], st[3], st[0], x[11], TABLE_S[3], TABLE_T[11]);
-        func_ff(st[0], st[1], st[2], st[3], x[12], TABLE_S[0], TABLE_T[12]);
-        func_ff(st[3], st[0], st[1], st[2], x[13], TABLE_S[1], TABLE_T[13]);
-        func_ff(st[2], st[3], st[0], st[1], x[14], TABLE_S[2], TABLE_T[14]);
-        func_ff(st[1], st[2], st[3], st[0], x[15], TABLE_S[3], TABLE_T[15]);
-
-        // round 2
-        func_gg(st[0], st[1], st[2], st[3], x[1], TABLE_S[4], TABLE_T[16]);
-        func_gg(st[3], st[0], st[1], st[2], x[6], TABLE_S[5], TABLE_T[17]);
-        func_gg(st[2], st[3], st[0], st[1], x[11], TABLE_S[6], TABLE_T[18]);
-        func_gg(st[1], st[2], st[3], st[0], x[0], TABLE_S[7], TABLE_T[19]);
-        func_gg(st[0], st[1], st[2], st[3], x[5], TABLE_S[4], TABLE_T[20]);
-        func_gg(st[3], st[0], st[1], st[2], x[10], TABLE_S[5], TABLE_T[21]);
-        func_gg(st[2], st[3], st[0], st[1], x[15], TABLE_S[6], TABLE_T[22]);
-        func_gg(st[1], st[2], st[3], st[0], x[4], TABLE_S[7], TABLE_T[23]);
-        func_gg(st[0], st[1], st[2], st[3], x[9], TABLE_S[4], TABLE_T[24]);
-        func_gg(st[3], st[0], st[1], st[2], x[14], TABLE_S[5], TABLE_T[25]);
-        func_gg(st[2], st[3], st[0], st[1], x[3], TABLE_S[6], TABLE_T[26]);
-        func_gg(st[1], st[2], st[3], st[0], x[8], TABLE_S[7], TABLE_T[27]);
-        func_gg(st[0], st[1], st[2], st[3], x[13], TABLE_S[4], TABLE_T[28]);
-        func_gg(st[3], st[0], st[1], st[2], x[2], TABLE_S[5], TABLE_T[29]);
-        func_gg(st[2], st[3], st[0], st[1], x[7], TABLE_S[6], TABLE_T[30]);
-        func_gg(st[1], st[2], st[3], st[0], x[12], TABLE_S[7], TABLE_T[31]);
-
-        // round 3
-        func_hh(st[0], st[1], st[2], st[3], x[5], TABLE_S[8], TABLE_T[32]);
-        func_hh(st[3], st[0], st[1], st[2], x[8], TABLE_S[9], TABLE_T[33]);
-        func_hh(st[2], st[3], st[0], st[1], x[11], TABLE_S[10], TABLE_T[34]);
-        func_hh(st[1], st[2], st[3], st[0], x[14], TABLE_S[11], TABLE_T[35]);
-        func_hh(st[0], st[1], st[2], st[3], x[1], TABLE_S[8], TABLE_T[36]);
-        func_hh(st[3], st[0], st[1], st[2], x[4], TABLE_S[9], TABLE_T[37]);
-        func_hh(st[2], st[3], st[0], st[1], x[7], TABLE_S[10], TABLE_T[38]);
-        func_hh(st[1], st[2], st[3], st[0], x[10], TABLE_S[11], TABLE_T[39]);
-        func_hh(st[0], st[1], st[2], st[3], x[13], TABLE_S[8], TABLE_T[40]);
-        func_hh(st[3], st[0], st[1], st[2], x[0], TABLE_S[9], TABLE_T[41]);
-        func_hh(st[2], st[3], st[0], st[1], x[3], TABLE_S[10], TABLE_T[42]);
-        func_hh(st[1], st[2], st[3], st[0], x[6], TABLE_S[11], TABLE_T[43]);
-        func_hh(st[0], st[1], st[2], st[3], x[9], TABLE_S[8], TABLE_T[44]);
-        func_hh(st[3], st[0], st[1], st[2], x[12], TABLE_S[9], TABLE_T[45]);
-        func_hh(st[2], st[3], st[0], st[1], x[15], TABLE_S[10], TABLE_T[46]);
-        func_hh(st[1], st[2], st[3], st[0], x[2], TABLE_S[11], TABLE_T[47]);
-
-        // round 4
-        func_ii(st[0], st[1], st[2], st[3], x[0], TABLE_S[12], TABLE_T[48]);
-        func_ii(st[3], st[0], st[1], st[2], x[7], TABLE_S[13], TABLE_T[49]);
-        func_ii(st[2], st[3], st[0], st[1], x[14], TABLE_S[14], TABLE_T[50]);
-        func_ii(st[1], st[2], st[3], st[0], x[5], TABLE_S[15], TABLE_T[51]);
-        func_ii(st[0], st[1], st[2], st[3], x[12], TABLE_S[12], TABLE_T[52]);
-        func_ii(st[3], st[0], st[1], st[2], x[3], TABLE_S[13], TABLE_T[53]);
-        func_ii(st[2], st[3], st[0], st[1], x[10], TABLE_S[14], TABLE_T[54]);
-        func_ii(st[1], st[2], st[3], st[0], x[1], TABLE_S[15], TABLE_T[55]);
-        func_ii(st[0], st[1], st[2], st[3], x[8], TABLE_S[12], TABLE_T[56]);
-        func_ii(st[3], st[0], st[1], st[2], x[15], TABLE_S[13], TABLE_T[57]);
-        func_ii(st[2], st[3], st[0], st[1], x[6], TABLE_S[14], TABLE_T[58]);
-        func_ii(st[1], st[2], st[3], st[0], x[13], TABLE_S[15], TABLE_T[59]);
-        func_ii(st[0], st[1], st[2], st[3], x[4], TABLE_S[12], TABLE_T[60]);
-        func_ii(st[3], st[0], st[1], st[2], x[11], TABLE_S[13], TABLE_T[61]);
-        func_ii(st[2], st[3], st[0], st[1], x[2], TABLE_S[14], TABLE_T[62]);
-        func_ii(st[1], st[2], st[3], st[0], x[9], TABLE_S[15], TABLE_T[63]);
+        transform_round_1(x, st);
+        transform_round_2(x, st);
+        transform_round_3(x, st);
+        transform_round_4(x, st);
 
         state[0] += st[0];
         state[1] += st[1];
         state[2] += st[2];
         state[3] += st[3];
-    }
-
-    template <detail::byte_char_cpt B>
-    constexpr std::span<const B> consume_long(std::span<const B> input, std::span<std::uint32_t, 4> state) const noexcept
-    {
-        while (input.size() >= BLOCK_SIZE)
-        {
-            auto x = detail::read_array<std::uint32_t, BLOCK_SIZE / 4>(input);
-            transform(x, state);
-        }
-        return input;
     }
 
 public:
@@ -450,12 +404,12 @@ template <typename Derived>
 template <byte_char_cpt B>
 constexpr std::span<const B> md_base<Derived>::consume_long(std::span<const B> input) noexcept
 {
-    while (input.size() >= BLOCK_SIZE)
+    for (std::size_t i = 0; i + BLOCK_SIZE <= input.size(); i += BLOCK_SIZE)
     {
-        auto x = detail::read_array<std::uint32_t, BLOCK_SIZE / 4>(input);
+        auto x = detail::cast_from_bytes_at_unsafe<std::uint32_t, BLOCK_SIZE / 4>(input, i);
         static_cast<const Derived*>(this)->transform(x, m_state);
     }
-    return input;
+    return input.subspan(input.size() - input.size() % BLOCK_SIZE);
 }
 
 template <typename Derived>
@@ -475,14 +429,11 @@ constexpr hash_result_value<128> md_base<Derived>::result() const noexcept
     hash_result_value<128> res{};
 
     constexpr std::size_t X_SIZE = BLOCK_SIZE / 4;
-    std::array<std::uint32_t, X_SIZE> x{};
     std::array<std::uint8_t, 4> remain{};
-    std::span<const std::uint8_t> buffer = m_buffer;
     std::size_t x_front_size = m_buffer_size / 4; // m_buffer_size < BLOCK_SIZE
-    for (std::size_t i = 0; i < x_front_size; i++)
-    {
-        x[i] = read_integral<std::uint32_t>(buffer);
-    }
+    std::array<std::uint32_t, X_SIZE> x = cast_from_bytes<std::uint32_t, X_SIZE>(std::span<const std::uint8_t, BLOCK_SIZE>(m_buffer));
+    std::fill(x.begin() + x_front_size, x.end(), 0);
+
     std::size_t x_remain = m_buffer_size % 4;
     for (std::size_t i = 0; i < x_remain; i++)
     {

@@ -121,38 +121,41 @@ private:
 
     constexpr value_type finalize(value_type hash, std::span<const std::uint8_t> input) const noexcept
     {
+        constexpr std::size_t UINT32_SIZE = sizeof(std::uint32_t);
+        constexpr std::size_t UINT64_SIZE = sizeof(std::uint64_t);
         if constexpr (N == 32)
         {
-            while (input.size() >= sizeof(std::uint32_t))
+            for (std::size_t i = 0; i + UINT32_SIZE <= input.size(); i += UINT32_SIZE)
             {
-                hash += detail::read_integral<std::uint32_t>(input) * PRIMES[2];
+                hash += detail::cast_from_bytes_at_unsafe<std::uint32_t>(input, i) * PRIMES[2];
                 hash = std::rotl(hash, 17) * PRIMES[3];
             }
 
-            while (!input.empty())
+            for (std::size_t i = input.size() - input.size() % UINT32_SIZE; i < input.size(); i++)
             {
-                hash += static_cast<value_type>(detail::read_integral<std::uint8_t>(input)) * PRIMES[4];
+                hash += static_cast<value_type>(input[i]) * PRIMES[4];
                 hash = std::rotl(hash, 11) * PRIMES[0];
             }
         }
         else if constexpr (N == 64)
         {
-            while (input.size() >= sizeof(std::uint64_t))
+            for (std::size_t i = 0; i + UINT64_SIZE <= input.size(); i += UINT64_SIZE)
             {
-                const auto k1 = round(0, detail::read_integral<std::uint64_t>(input));
+                const auto k1 = round(0, detail::cast_from_bytes_at_unsafe<std::uint64_t>(input, i));
                 hash ^= k1;
                 hash = std::rotl(hash, 27) * PRIMES[0] + PRIMES[3];
             }
 
-            if (input.size() >= sizeof(std::uint32_t))
+            if (input.size() % UINT64_SIZE >= UINT32_SIZE)
             {
-                hash ^= static_cast<value_type>(detail::read_integral<std::uint32_t>(input)) * PRIMES[0];
+                std::size_t index = input.size() - input.size() % UINT64_SIZE;
+                hash ^= static_cast<value_type>(detail::cast_from_bytes_at_unsafe<std::uint32_t>(input, index)) * PRIMES[0];
                 hash = std::rotl(hash, 23) * PRIMES[1] + PRIMES[2];
             }
 
-            while (!input.empty())
+            for (std::size_t i = input.size() - input.size() % UINT32_SIZE; i < input.size(); i++)
             {
-                hash ^= static_cast<value_type>(detail::read_integral<std::uint8_t>(input)) * PRIMES[4];
+                hash ^= static_cast<value_type>(input[i]) * PRIMES[4];
                 hash = std::rotl(hash, 11) * PRIMES[0];
             }
         }
@@ -166,15 +169,16 @@ private:
     template <detail::byte_char_cpt B>
     constexpr std::span<const B> consume_long(std::span<const B> input) noexcept
     {
-        do
+        for (std::size_t i = 0; i + MAX_BUFFER_SIZE <= input.size(); i += MAX_BUFFER_SIZE)
         {
-            m_accs[0] = round(m_accs[0], detail::read_integral<value_type>(input));
-            m_accs[1] = round(m_accs[1], detail::read_integral<value_type>(input));
-            m_accs[2] = round(m_accs[2], detail::read_integral<value_type>(input));
-            m_accs[3] = round(m_accs[3], detail::read_integral<value_type>(input));
-        } while (input.size() >= MAX_BUFFER_SIZE);
+            constexpr std::size_t val_size = sizeof(value_type);
+            m_accs[0] = round(m_accs[0], detail::cast_from_bytes_at_unsafe<value_type>(input, i));
+            m_accs[1] = round(m_accs[1], detail::cast_from_bytes_at_unsafe<value_type>(input, i + val_size));
+            m_accs[2] = round(m_accs[2], detail::cast_from_bytes_at_unsafe<value_type>(input, i + val_size * 2));
+            m_accs[3] = round(m_accs[3], detail::cast_from_bytes_at_unsafe<value_type>(input, i + val_size * 3));
+        }
 
-        return input;
+        return input.subspan(input.size() - input.size() % MAX_BUFFER_SIZE);
     }
 
     constexpr value_type digest(std::span<const std::uint8_t> buffer) const noexcept
