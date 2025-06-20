@@ -3,7 +3,25 @@
 #include "hash/md.hpp"
 #include "doctest/doctest.h"
 
+namespace toy
+{
+template <std::size_t N>
+std::ostream& operator<< (std::ostream& os, const toy::hash_result_value<N>& res)
+{
+    os << res.to_hexstring().c_str();
+    return os;
+}
+} // namespace toy
+
 using namespace toy;
+
+TEST_CASE("hash_result")
+{
+    constexpr auto result1 = "0"_hash_hex_32;
+    CHECK(result1.to_hexstring() == "00000000");
+    constexpr auto result2 = "12345"_hash_hex_128;
+    CHECK(result2.to_hexstring() == "00000000000000000000000000012345");
+}
 
 TEST_CASE("xxhash32")
 {

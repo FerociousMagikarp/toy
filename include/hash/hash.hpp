@@ -2,7 +2,9 @@
 
 #include <concepts>
 #include <span>
+#include <string>
 #include <string_view>
+#include <charconv>
 #include <algorithm>
 #include <bit>
 
@@ -141,6 +143,33 @@ struct hash_result_value
     friend constexpr bool operator==(const hash_result_value& lhs, const hash_result_value& rhs)
     {
         return lhs.value == rhs.value;
+    }
+
+    std::string to_hexstring() const
+    {
+        std::string res(N / 4, '0');
+        constexpr std::size_t base_char_count = base_bit / 4;
+        using iter_t = typename std::string::iterator;
+        std::string temp(base_char_count, '1');
+        auto copy_to_res_func = [&temp, this](iter_t res_begin, base_type val) -> void
+        {
+            auto result = std::to_chars(temp.data(), temp.data() + temp.size(), val, 16);
+            std::size_t size = result.ptr - temp.data();
+            std::copy(temp.begin(), temp.begin() + size, res_begin + (temp.size() - size));
+        };
+        if constexpr (count == 1)
+        {
+            copy_to_res_func(res.begin(), value);
+        }
+        else
+        {
+            for (std::size_t i = 0; i < count; i++)
+            {
+                auto iter = res.begin() + (res.size() - (i + 1) * base_char_count);
+                copy_to_res_func(iter, value[i]);
+            }
+        }
+        return res;
     }
 };
 
