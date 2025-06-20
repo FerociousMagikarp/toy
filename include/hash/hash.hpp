@@ -146,7 +146,7 @@ struct hash_result_value
         std::string res(N / 4, '0');
         constexpr std::size_t base_char_count = base_bit / 4;
         using iter_t = typename std::string::iterator;
-        std::string temp(base_char_count, '1');
+        std::string temp(base_char_count, '\0');
         auto copy_to_res_func = [&temp, this](iter_t res_begin, base_type val) -> void
         {
             auto result = std::to_chars(temp.data(), temp.data() + temp.size(), val, 16);

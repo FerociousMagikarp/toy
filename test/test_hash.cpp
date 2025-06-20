@@ -18,10 +18,29 @@ using namespace toy;
 
 TEST_CASE("hash_result")
 {
-    constexpr auto result1 = "0"_hash_hex_32;
-    CHECK(result1.to_hexstring() == "00000000");
-    constexpr auto result2 = "12345"_hash_hex_128;
-    CHECK(result2.to_hexstring() == "00000000000000000000000000012345");
+    constexpr auto result1 = "550d7456"_hash_hex_32;
+    CHECK(result1.to_hexstring() == "550d7456");
+
+    hash_result_value<64> result2;
+    CHECK(result2.to_hexstring() == "0000000000000000");
+
+    constexpr auto result3 = "12345"_hash_hex_128;
+    CHECK(result3.to_hexstring() == "00000000000000000000000000012345");
+
+    constexpr auto result4 = "aa938a3570a512dc3804d443e1f28f957b0204c5"_hash_hex_160;
+    CHECK(result4.to_hexstring() == "aa938a3570a512dc3804d443e1f28f957b0204c5");
+
+    constexpr auto result5 = "24b86f42377911a17a9bab50b2922e66e08a0185a333ae8491034364"_hash_hex_224;
+    CHECK(result5.to_hexstring() == "24b86f42377911a17a9bab50b2922e66e08a0185a333ae8491034364");
+
+    constexpr auto result6 = "69aad76eedef353b93a56758050e83019ea861b9a96deef7fd7e77d508cfe785"_hash_hex_256;
+    CHECK(result6.to_hexstring() == "69aad76eedef353b93a56758050e83019ea861b9a96deef7fd7e77d508cfe785");
+
+    constexpr auto result7 = "69aad76eedef353b93a56758050e83019ea861b9a96deef7fd7e77d508cfe785"_hash_hex_384;
+    CHECK(result7.to_hexstring() == "0000000000000000000000000000000069aad76eedef353b93a56758050e83019ea861b9a96deef7fd7e77d508cfe785");
+
+    constexpr auto result8 = "16bc814770dd9767c8a95bc99aa00ee6e6dccc072677482f6bc8d63074bea71c5c1ec36e0ae13a99c1ea7495c9a40627b35e3da73051652062a70fe48634ce12"_hash_hex_512;
+    CHECK(result8.to_hexstring() == "16bc814770dd9767c8a95bc99aa00ee6e6dccc072677482f6bc8d63074bea71c5c1ec36e0ae13a99c1ea7495c9a40627b35e3da73051652062a70fe48634ce12");
 }
 
 TEST_CASE("xxhash32")
