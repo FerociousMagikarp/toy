@@ -267,3 +267,21 @@ TEST_CASE("murmurhash2")
     CHECK(hash<murmurhash2>(900812297)(u8"结果是多少") == "79928a88"_hash_hex_32);
 }
 
+TEST_CASE("murmurhash2_64a")
+{
+    static_assert(hash<murmurhash2_64a>()("a") == "071717d2d36b6b11"_hash_hex_64);
+
+    CHECK(hash<murmurhash2_64a>(61755476)("") == "42a0e7753c25b1a5"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>()("a") == "071717d2d36b6b11"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>()("1234") == "92b7977746710c51"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>()("abcdefghi") == "c9b9d84356146ac2"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>()("abcdefghij") == "a33f0dbf245bcb51"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>()("abcdefghijk") == "feff07a18c726536"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>()("abcdefghijkl") == "a24066d5378b01bb"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>()("abcdefghijklm") == "e126e825baaba665"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>()("abcdefghijklmn") == "9da2538e559887e9"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>()("abcdefghijklmno") == "fdaac8a629dcd46a"_hash_hex_64);
+
+    CHECK(hash<murmurhash2_64a>()(u8"测试") == "21ac04a1894efdbf"_hash_hex_64);
+    CHECK(hash<murmurhash2_64a>(900812297)(u8"结果是多少") == "deb3133cffb5d046"_hash_hex_64);
+}

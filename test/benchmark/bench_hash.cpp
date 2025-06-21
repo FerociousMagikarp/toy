@@ -68,6 +68,12 @@ void bench_hash(ankerl::nanobench::Bench& bench, StrView content)
         auto val = hash<murmurhash2>()(content);
         ankerl::nanobench::doNotOptimizeAway(val);
     });
+ 
+    bench.run("murmurhash2_64a", [content] () -> void
+    {
+        auto val = hash<murmurhash2_64a>()(content);
+        ankerl::nanobench::doNotOptimizeAway(val);
+    });
 }
 
 TEST_CASE("hash")
