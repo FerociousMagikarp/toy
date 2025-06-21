@@ -82,10 +82,9 @@ protected:
     std::size_t m_buffer_size = 0;
     std::size_t m_total_len = 0;
 
-public:
     template <byte_char_cpt B>
         requires requires (T t, std::span<const B> val) { { t.consume_long(val) } -> std::convertible_to<std::span<const B>>; }
-    constexpr void update(std::span<const B> input) noexcept
+    constexpr void update_buffer(std::span<const B> input) noexcept
     {
         if (input.empty())
             return;

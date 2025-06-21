@@ -26,6 +26,12 @@ protected:
     constexpr std::span<const B> consume_long(std::span<const B> input) noexcept;
 
 public:
+    template <byte_char_cpt B>
+    constexpr void update(std::span<const B> input) noexcept
+    {
+        this->update_buffer(input);
+    }
+
     constexpr hash_result_value<128> result() const noexcept;
 };
 
@@ -122,6 +128,12 @@ private:
 public:
     constexpr md2() noexcept {}
     constexpr ~md2() noexcept {}
+
+    template <detail::byte_char_cpt B>
+    constexpr void update(std::span<const B> input) noexcept
+    {
+        this->update_buffer(input);
+    }
 
     constexpr hash_result_value<128> result() const noexcept
     {
