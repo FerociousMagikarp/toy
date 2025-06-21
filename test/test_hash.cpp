@@ -239,6 +239,8 @@ TEST_CASE("md5")
 
 TEST_CASE("murmurhash1")
 {
+    static_assert(hash<murmurhash1>()("a") == "872d28c5"_hash_hex_32);
+
     CHECK(hash<murmurhash1>(61755476)("") == "74d531ef"_hash_hex_32);
     CHECK(hash<murmurhash1>()("a") == "872d28c5"_hash_hex_32);
     CHECK(hash<murmurhash1>()("1234") == "f12e8bad"_hash_hex_32);
@@ -249,3 +251,19 @@ TEST_CASE("murmurhash1")
     CHECK(hash<murmurhash1>()(u8"测试") == "fcad7be1"_hash_hex_32);
     CHECK(hash<murmurhash1>(900812297)(u8"结果是多少") == "5bb709b8"_hash_hex_32);
 }
+
+TEST_CASE("murmurhash2")
+{
+    static_assert(hash<murmurhash2>()("a") == "92685f5e"_hash_hex_32);
+
+    CHECK(hash<murmurhash2>(61755476)("") == "46b0f07e"_hash_hex_32);
+    CHECK(hash<murmurhash2>()("a") == "92685f5e"_hash_hex_32);
+    CHECK(hash<murmurhash2>()("1234") == "018492f9"_hash_hex_32);
+    CHECK(hash<murmurhash2>()("abcdefghi") == "f0319aa7"_hash_hex_32);
+    CHECK(hash<murmurhash2>()("abcdefghij") == "4b09c914"_hash_hex_32);
+    CHECK(hash<murmurhash2>()("abcdefghijk") == "4a7439a6"_hash_hex_32);
+
+    CHECK(hash<murmurhash2>()(u8"测试") == "94fa7981"_hash_hex_32);
+    CHECK(hash<murmurhash2>(900812297)(u8"结果是多少") == "79928a88"_hash_hex_32);
+}
+

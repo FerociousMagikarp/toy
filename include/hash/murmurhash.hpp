@@ -21,6 +21,7 @@ public:
     constexpr void update(std::span<const B> input) noexcept
     {
         m_hash = m_seed ^ (static_cast<std::uint32_t>(input.size()) * M);
+
         for  (std::size_t i = 0; i + 4 <= input.size(); i += 4)
         {
             auto k = detail::cast_from_bytes_at_unsafe<std::uint32_t>(input, i);
@@ -46,16 +47,81 @@ public:
         default:
             break;
         };
-        m_hash *= M;
-        m_hash ^= m_hash >> 10;
-        m_hash *= M;
-        m_hash ^= m_hash >> 17;
+        
     }
 
     constexpr hash_result_value<32> result() const noexcept
     {
         hash_result_value<32> res;
-        res.value = m_hash;
+
+        std::uint32_t hash = m_hash;
+        hash *= M;
+        hash ^= hash >> 10;
+        hash *= M;
+        hash ^= hash >> 17;
+        res.value = hash;
+        return res;
+    }
+};
+
+// from https://github.com/aappleby/smhasher/blob/master/src/MurmurHash2.cpp
+class murmurhash2
+{
+private:
+    constexpr static std::uint32_t M = 0x5bd1e995u;
+    std::uint32_t m_seed = 0;
+    std::uint32_t m_hash = 0;
+
+public:
+    constexpr explicit murmurhash2(std::uint32_t seed = 0) noexcept : m_seed(seed) {}
+    constexpr ~murmurhash2() noexcept {}
+
+    template <detail::byte_char_cpt B>
+    constexpr void update(std::span<const B> input) noexcept
+    {
+        m_hash = m_seed ^ static_cast<std::uint32_t>(input.size());
+
+        for  (std::size_t i = 0; i + 4 <= input.size(); i += 4)
+        {
+            auto k = detail::cast_from_bytes_at_unsafe<std::uint32_t>(input, i);
+            k *= M;
+            k ^= k >> 24;
+            k *= M;
+
+            m_hash *= M;
+            m_hash ^= k;
+        }
+        input = input.subspan(input.size() - input.size() % 4);
+
+        switch (input.size())
+        {
+        case 3:
+            m_hash ^= static_cast<std::uint32_t>(input[2]) << 16;
+            [[fallthrough]];
+        case 2:
+            m_hash ^= static_cast<std::uint32_t>(input[1]) << 8;
+            [[fallthrough]];
+        case 1:
+            m_hash ^= static_cast<std::uint32_t>(input[0]);
+            m_hash *= M;
+            break;
+        default:
+            break;
+        };
+
+    }
+
+    constexpr hash_result_value<32> result() const noexcept
+    {
+        hash_result_value<32> res;
+        
+        std::uint32_t hash = m_hash;
+        hash ^= hash >> 13;
+        hash *= M;
+        hash ^= hash >> 15;
+
+        res.value = hash;
+
         return res;
     }
 };
@@ -66,5 +132,12 @@ struct hash_result<murmurhash1>
 {
     using type = hash_result_value<32>;
 };
+
+template <>
+struct hash_result<murmurhash2>
+{
+    using type = hash_result_value<32>;
+};
+
 
 } // namespace toy
