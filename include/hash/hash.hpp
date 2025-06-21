@@ -4,6 +4,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <array>
 #include <algorithm>
 #include <bit>
 
@@ -73,39 +74,52 @@ constexpr std::array<T, N> cast_from_bytes_at_unsafe(std::span<const B> val, std
     return cast_from_bytes<T, N>(std::span<const B, sizeof(T) * N>(val.data() + index, sizeof(T) * N));
 }
 
-template <byte_char_cpt B, std::size_t MAX_BUFFER_SIZE, typename F>
-constexpr void update_buffer(std::span<const B> input, std::array<std::uint8_t, MAX_BUFFER_SIZE>& buffer, std::size_t& buffer_size, F&& consume_func) noexcept
+template <typename T, std::size_t N>
+class _hash_stream_save_to_buffer_base
 {
-    if (input.empty())
-        return;
+protected:
+    std::array<std::uint8_t, N> m_buffer{};
+    std::size_t m_buffer_size = 0;
+    std::size_t m_total_len = 0;
 
-    if (buffer_size + input.size() < MAX_BUFFER_SIZE)
+public:
+    template <byte_char_cpt B>
+        requires requires (T t, std::span<const B> val) { { t.consume_long(val) } -> std::convertible_to<std::span<const B>>; }
+    constexpr void update(std::span<const B> input) noexcept
     {
-        std::copy(input.begin(), input.end(), buffer.begin() + buffer_size);
-        buffer_size += input.size();
-        return;
-    }
+        if (input.empty())
+            return;
 
-    if (buffer_size > 0)
-    {
-        std::size_t copy_count = MAX_BUFFER_SIZE - buffer_size;
-        std::copy(input.begin(), input.begin() + copy_count, buffer.begin() + buffer_size);
-        input = input.subspan(copy_count);
-        consume_func(std::span<const std::uint8_t>{buffer});
-        buffer_size = 0;
-    }
+        m_total_len += input.size();
 
-    if (input.size() >= MAX_BUFFER_SIZE)
-    {
-        input = consume_func(input);
-    }
+        if (m_buffer_size + input.size() < N)
+        {
+            std::copy(input.begin(), input.end(), m_buffer.begin() + m_buffer_size);
+            m_buffer_size += input.size();
+            return;
+        }
 
-    if (!input.empty())
-    {
-        std::copy(input.begin(), input.end(), buffer.begin());
-        buffer_size = input.size();
+        if (m_buffer_size > 0)
+        {
+            std::size_t copy_count = N - m_buffer_size;
+            std::copy(input.begin(), input.begin() + copy_count, m_buffer.begin() + m_buffer_size);
+            input = input.subspan(copy_count);
+            static_cast<T*>(this)->consume_long(std::span<const std::uint8_t>{m_buffer});
+            m_buffer_size = 0;
+        }
+
+        if (input.size() >= N)
+        {
+            input = static_cast<T*>(this)->consume_long(input);
+        }
+
+        if (!input.empty())
+        {
+            std::copy(input.begin(), input.end(), m_buffer.begin());
+            m_buffer_size = input.size();
+        }
     }
-}
+};
 
 template<std::size_t N> struct _hash_result_base;
 template<> struct _hash_result_base<8>{ using type = std::uint8_t; };

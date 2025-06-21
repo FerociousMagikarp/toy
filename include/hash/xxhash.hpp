@@ -11,7 +11,11 @@ namespace toy
 namespace detail
 {
 
-struct xxhash32_data
+template <int N>
+struct xxhash_data;
+
+template <>
+struct xxhash_data<32>
 {
     using value_type = std::uint32_t;
 
@@ -29,7 +33,8 @@ struct xxhash32_data
     constexpr static std::array<int, 4> MERGE_ACC_ROT = { 1, 7, 12, 18 };
 };
 
-struct xxhash64_data
+template <>
+struct xxhash_data<64>
 {
     using value_type = std::uint64_t;
 
@@ -47,19 +52,16 @@ struct xxhash64_data
     constexpr static std::array<int, 4> MERGE_ACC_ROT = { 1, 7, 12, 18 };
 };
 
-} // namespace detail
-
 template <int N>
     requires (N == 32 || N == 64)
-class xxhash
+class xxhash : public _hash_stream_save_to_buffer_base<xxhash<N>, xxhash_data<N>::MAX_BUFFER_SIZE>
 {
 private:
-    using data_type = std::conditional_t<N == 32, detail::xxhash32_data, detail::xxhash64_data>;
-
-public:
+    using data_type = xxhash_data<N>;
     using value_type = typename data_type::value_type;
 
-private:
+    friend class _hash_stream_save_to_buffer_base<xxhash<N>, xxhash_data<N>::MAX_BUFFER_SIZE>;
+
     constexpr static std::array<value_type, 5> PRIMES = data_type::PRIMES;
     constexpr static std::size_t MAX_BUFFER_SIZE = data_type::MAX_BUFFER_SIZE;
     constexpr static int ROUND_ROT = data_type::ROUND_ROT;
@@ -67,9 +69,6 @@ private:
     constexpr static std::array<int, 4> MERGE_ACC_ROT = data_type::MERGE_ACC_ROT;
 
     std::array<value_type, 4> m_accs{};
-    std::array<std::uint8_t, MAX_BUFFER_SIZE> m_buffer{};
-    std::size_t m_buffer_size = 0;
-    std::size_t m_total_len = 0;
 
     constexpr void init_accs(value_type seed) noexcept
     {
@@ -127,7 +126,7 @@ private:
         {
             for (std::size_t i = 0; i + UINT32_SIZE <= input.size(); i += UINT32_SIZE)
             {
-                hash += detail::cast_from_bytes_at_unsafe<std::uint32_t>(input, i) * PRIMES[2];
+                hash += cast_from_bytes_at_unsafe<std::uint32_t>(input, i) * PRIMES[2];
                 hash = std::rotl(hash, 17) * PRIMES[3];
             }
 
@@ -141,7 +140,7 @@ private:
         {
             for (std::size_t i = 0; i + UINT64_SIZE <= input.size(); i += UINT64_SIZE)
             {
-                const auto k1 = round(0, detail::cast_from_bytes_at_unsafe<std::uint64_t>(input, i));
+                const auto k1 = round(0, cast_from_bytes_at_unsafe<std::uint64_t>(input, i));
                 hash ^= k1;
                 hash = std::rotl(hash, 27) * PRIMES[0] + PRIMES[3];
             }
@@ -149,7 +148,7 @@ private:
             if (input.size() % UINT64_SIZE >= UINT32_SIZE)
             {
                 std::size_t index = input.size() - input.size() % UINT64_SIZE;
-                hash ^= static_cast<value_type>(detail::cast_from_bytes_at_unsafe<std::uint32_t>(input, index)) * PRIMES[0];
+                hash ^= static_cast<value_type>(cast_from_bytes_at_unsafe<std::uint32_t>(input, index)) * PRIMES[0];
                 hash = std::rotl(hash, 23) * PRIMES[1] + PRIMES[2];
             }
 
@@ -161,21 +160,21 @@ private:
         }
         else
         {
-            static_assert(detail::always_false<decltype(N)>);
+            static_assert(always_false<decltype(N)>);
         }
         return avalanche(hash);
     }
 
-    template <detail::byte_char_cpt B>
+    template <byte_char_cpt B>
     constexpr std::span<const B> consume_long(std::span<const B> input) noexcept
     {
         for (std::size_t i = 0; i + MAX_BUFFER_SIZE <= input.size(); i += MAX_BUFFER_SIZE)
         {
             constexpr std::size_t val_size = sizeof(value_type);
-            m_accs[0] = round(m_accs[0], detail::cast_from_bytes_at_unsafe<value_type>(input, i));
-            m_accs[1] = round(m_accs[1], detail::cast_from_bytes_at_unsafe<value_type>(input, i + val_size));
-            m_accs[2] = round(m_accs[2], detail::cast_from_bytes_at_unsafe<value_type>(input, i + val_size * 2));
-            m_accs[3] = round(m_accs[3], detail::cast_from_bytes_at_unsafe<value_type>(input, i + val_size * 3));
+            m_accs[0] = round(m_accs[0], cast_from_bytes_at_unsafe<value_type>(input, i));
+            m_accs[1] = round(m_accs[1], cast_from_bytes_at_unsafe<value_type>(input, i + val_size));
+            m_accs[2] = round(m_accs[2], cast_from_bytes_at_unsafe<value_type>(input, i + val_size * 2));
+            m_accs[3] = round(m_accs[3], cast_from_bytes_at_unsafe<value_type>(input, i + val_size * 3));
         }
 
         return input.subspan(input.size() - input.size() % MAX_BUFFER_SIZE);
@@ -184,11 +183,11 @@ private:
     constexpr value_type digest(std::span<const std::uint8_t> buffer) const noexcept
     {
         value_type h = 0;
-        if (m_total_len >= MAX_BUFFER_SIZE)
+        if (this->m_total_len >= MAX_BUFFER_SIZE)
             h = merge_accs();
         else
             h = m_accs[2] + PRIMES[4];
-        h += static_cast<value_type>(m_total_len);
+        h += static_cast<value_type>(this->m_total_len);
 
         return finalize(h, buffer);
     }
@@ -200,32 +199,23 @@ public:
     }
     constexpr ~xxhash() noexcept {}
 
-    template <detail::byte_char_cpt B>
-    constexpr void update(std::span<const B> input) noexcept
-    {
-        m_total_len += input.size();
-        detail::update_buffer(input, m_buffer, m_buffer_size, [this]<detail::byte_char_cpt T>(std::span<const T> val) -> std::span<const T>
-        {
-            return this->consume_long(val);
-        });
-    }
-
     constexpr hash_result_value<N> result() const noexcept
     {
         hash_result_value<N> res;
-        value_type val = digest(std::span<const std::uint8_t>(m_buffer.begin(), m_buffer.begin() + m_buffer_size));
-        res.value = val;
+        res.value = digest(std::span<const std::uint8_t>(this->m_buffer.begin(), this->m_buffer.begin() + this->m_buffer_size));
         return res;
     }
 };
 
+} // namespace detail
+
 template <int N>
-struct hash_result<xxhash<N>>
+struct hash_result<detail::xxhash<N>>
 {
     using type = hash_result_value<N>;
 };
 
-using xxhash32 = xxhash<32>;
-using xxhash64 = xxhash<64>;
+using xxhash32 = detail::xxhash<32>;
+using xxhash64 = detail::xxhash<64>;
 
 } // namespace toy
