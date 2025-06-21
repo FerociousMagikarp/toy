@@ -199,12 +199,6 @@ public:
     }
     constexpr ~xxhash() noexcept {}
 
-    template <byte_char_cpt B>
-    constexpr void update(std::span<const B> input) noexcept
-    {
-        this->update_buffer(input);
-    }
-
     constexpr hash_result_value<N> result() const noexcept
     {
         hash_result_value<N> res;
