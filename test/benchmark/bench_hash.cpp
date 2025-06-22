@@ -9,6 +9,60 @@
 
 using namespace toy;
 
+
+uint64_t MurmurHash64B ( const void * key, int len, uint64_t seed )
+{
+  const uint32_t m = 0x5bd1e995;
+  const int r = 24;
+
+  uint32_t h1 = uint32_t(seed) ^ len;
+  uint32_t h2 = uint32_t(seed >> 32);
+
+  const uint32_t * data = (const uint32_t *)key;
+
+  while(len >= 8)
+  {
+    uint32_t k1 = *data++;
+    k1 *= m; k1 ^= k1 >> r; k1 *= m;
+    h1 *= m; h1 ^= k1;
+    len -= 4;
+
+    uint32_t k2 = *data++;
+    k2 *= m; k2 ^= k2 >> r; k2 *= m;
+    h2 *= m; h2 ^= k2;
+    len -= 4;
+  }
+
+  if(len >= 4)
+  {
+    uint32_t k1 = *data++;
+    k1 *= m; k1 ^= k1 >> r; k1 *= m;
+    h1 *= m; h1 ^= k1;
+    len -= 4;
+  }
+
+  switch(len)
+  {
+  case 3: h2 ^= ((unsigned char*)data)[2] << 16;
+  case 2: h2 ^= ((unsigned char*)data)[1] << 8;
+  case 1: h2 ^= ((unsigned char*)data)[0];
+      h2 *= m;
+  };
+
+  h1 ^= h2 >> 18; h1 *= m;
+  h2 ^= h1 >> 22; h2 *= m;
+  h1 ^= h2 >> 17; h1 *= m;
+  h2 ^= h1 >> 19; h2 *= m;
+
+  uint64_t h = h1;
+
+  h = (h << 32) | h2;
+
+  return h;
+}
+
+
+
 template <typename StrView>
     requires (std::is_same_v<std::decay_t<StrView>, std::string_view>
                 || std::is_same_v<std::decay_t<StrView>, std::u8string_view>)
@@ -72,6 +126,18 @@ void bench_hash(ankerl::nanobench::Bench& bench, StrView content)
     bench.run("murmurhash2_64a", [content] () -> void
     {
         auto val = hash<murmurhash2_64a>()(content);
+        ankerl::nanobench::doNotOptimizeAway(val);
+    });
+
+    bench.run("murmurhash2_64b", [content] () -> void
+    {
+        auto val = hash<murmurhash2_64b>()(content);
+        ankerl::nanobench::doNotOptimizeAway(val);
+    });
+     
+    bench.run("murmurhash2_64b_ori", [content] () -> void
+    {
+        auto val = MurmurHash64B(content.data(), content.size(), 0);
         ankerl::nanobench::doNotOptimizeAway(val);
     });
 }
