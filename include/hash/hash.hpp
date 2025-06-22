@@ -93,7 +93,7 @@ public:
 
         if (m_buffer_size + input.size() < N)
         {
-            std::copy(input.begin(), input.end(), m_buffer.begin() + m_buffer_size);
+            std::transform(input.begin(), input.end(), m_buffer.begin() + m_buffer_size, [](auto c) -> std::uint8_t { return static_cast<std::uint8_t>(c); });
             m_buffer_size += input.size();
             return;
         }
@@ -101,7 +101,7 @@ public:
         if (m_buffer_size > 0)
         {
             std::size_t copy_count = N - m_buffer_size;
-            std::copy(input.begin(), input.begin() + copy_count, m_buffer.begin() + m_buffer_size);
+            std::transform(input.begin(), input.begin() + copy_count, m_buffer.begin() + m_buffer_size, [](auto c) -> std::uint8_t { return static_cast<std::uint8_t>(c); });
             input = input.subspan(copy_count);
             static_cast<T*>(this)->consume_long(std::span<const std::uint8_t>{m_buffer});
             m_buffer_size = 0;

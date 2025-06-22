@@ -14,9 +14,9 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update -qq
+          sudo apt-get update
           if [[ "${{ matrix.compiler }}" == gcc-12 ]]; then
-            sudo apt-get install -y g++-12
+            sudo apt-get install -y gcc-12 g++-12
             sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 90
             sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 90
           else
