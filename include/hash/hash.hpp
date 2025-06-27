@@ -91,9 +91,10 @@ public:
 
         m_total_len += input.size();
 
-        if (m_buffer_size + input.size() < N)
+        // `m_buffer_size < N` is for gcc
+        if (m_buffer_size + input.size() < N && m_buffer_size < N)
         {
-            std::transform(input.begin(), input.end(), m_buffer.begin() + m_buffer_size, [](auto c) -> std::uint8_t { return static_cast<std::uint8_t>(c); });
+            std::copy(input.begin(), input.end(), m_buffer.begin() + m_buffer_size);
             m_buffer_size += input.size();
             return;
         }
@@ -101,7 +102,7 @@ public:
         if (m_buffer_size > 0)
         {
             std::size_t copy_count = N - m_buffer_size;
-            std::transform(input.begin(), input.begin() + copy_count, m_buffer.begin() + m_buffer_size, [](auto c) -> std::uint8_t { return static_cast<std::uint8_t>(c); });
+            std::copy_n(input.begin(), copy_count, m_buffer.begin() + m_buffer_size);
             input = input.subspan(copy_count);
             static_cast<T*>(this)->consume_long(std::span<const std::uint8_t>{m_buffer});
             m_buffer_size = 0;
@@ -370,6 +371,12 @@ template <typename T>
 using hash_result_t = typename hash_result<T>::type;
 
 template <typename T>
+struct is_stream_hash : public std::true_type {};
+
+template <typename T>
+constexpr bool is_stream_hash_v = is_stream_hash<T>::value;
+
+template <typename T>
 class hash
 {
 public:
@@ -378,13 +385,13 @@ public:
     constexpr explicit hash(Args&&... args) noexcept : m_val(std::forward<Args>(args)...) {}
     constexpr ~hash() noexcept {}
 
-    constexpr hash& update(std::string_view s) noexcept
+    constexpr hash& update(std::string_view s) noexcept requires is_stream_hash_v<T>
     {
         m_val.update(std::span<const char>(s.data(), s.size()));
         return *this;
     }
 
-    constexpr hash& update(std::u8string_view s) noexcept
+    constexpr hash& update(std::u8string_view s) noexcept requires is_stream_hash_v<T>
     {
         m_val.update(std::span<const char8_t>(s.data(), s.size()));
         return *this;

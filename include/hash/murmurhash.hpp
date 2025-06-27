@@ -24,7 +24,7 @@ public:
     {
         m_hash = m_seed ^ (static_cast<value_type>(input.size()) * M);
 
-        for  (std::size_t i = 0; i + sizeof(value_type) <= input.size(); i += sizeof(value_type))
+        for (std::size_t i = 0; i + sizeof(value_type) <= input.size(); i += sizeof(value_type))
         {
             auto k = detail::cast_from_bytes_at_unsafe<value_type>(input, i);
             m_hash += k;
@@ -86,7 +86,7 @@ public:
     {
         m_hash = m_seed ^ static_cast<value_type>(input.size());
 
-        for  (std::size_t i = 0; i + sizeof(value_type) <= input.size(); i += sizeof(value_type))
+        for (std::size_t i = 0; i + sizeof(value_type) <= input.size(); i += sizeof(value_type))
         {
             auto k = detail::cast_from_bytes_at_unsafe<value_type>(input, i);
             k *= M;
@@ -152,7 +152,7 @@ public:
     {
         m_hash = m_seed ^ (static_cast<value_type>(input.size()) * M);
 
-        for  (std::size_t i = 0; i + sizeof(value_type) <= input.size(); i += sizeof(value_type))
+        for (std::size_t i = 0; i + sizeof(value_type) <= input.size(); i += sizeof(value_type))
         {
             auto k = detail::cast_from_bytes_at_unsafe<value_type>(input, i);
             k *= M;
@@ -232,7 +232,7 @@ public:
         m_hash1 = static_cast<value_type>(m_seed) ^ static_cast<value_type>(input.size());
         m_hash2 = static_cast<value_type>(m_seed >> 32);
 
-        for  (std::size_t i = 0; i + 8 <= input.size(); i += 8)
+        for (std::size_t i = 0; i + 8 <= input.size(); i += 8)
         {
             auto k1 = detail::cast_from_bytes_at_unsafe<value_type>(input, i);
             k1 *= M;
@@ -322,5 +322,16 @@ struct hash_result<murmurhash2_64b>
     using type = hash_result_value<64>;
 };
 
+template <>
+struct is_stream_hash<murmurhash1> : public std::false_type {};
+
+template <>
+struct is_stream_hash<murmurhash2> : public std::false_type {};
+
+template <>
+struct is_stream_hash<murmurhash2_64a> : public std::false_type {};
+
+template <>
+struct is_stream_hash<murmurhash2_64b> : public std::false_type {};
 
 } // namespace toy

@@ -19,6 +19,16 @@ void _bench_hash_single(ankerl::nanobench::Bench& bench, const char* name, auto 
     });
 }
 
+template <typename H>
+void _bench_hash_single_not_stream(ankerl::nanobench::Bench& bench, const char* name, auto content)
+{
+    bench.run(name, [content]() -> void
+    {
+        auto val = hash<H>()(content);
+        ankerl::nanobench::doNotOptimizeAway(val);
+    });
+}
+
 template <typename StrView>
     requires (std::is_same_v<std::decay_t<StrView>, std::string_view>
                 || std::is_same_v<std::decay_t<StrView>, std::u8string_view>)
@@ -34,10 +44,10 @@ void bench_hash(ankerl::nanobench::Bench& bench, StrView content)
     _bench_hash_single<md4>(bench, "md4", content);
     _bench_hash_single<md5>(bench, "md5", content);
 
-    _bench_hash_single<murmurhash1>(bench, "murmurhash1", content);
-    _bench_hash_single<murmurhash2>(bench, "murmurhash2", content);
-    _bench_hash_single<murmurhash2_64a>(bench, "murmurhash2_64a", content);
-    _bench_hash_single<murmurhash2_64b>(bench, "murmurhash2_64b", content);
+    _bench_hash_single_not_stream<murmurhash1>(bench, "murmurhash1", content);
+    _bench_hash_single_not_stream<murmurhash2>(bench, "murmurhash2", content);
+    _bench_hash_single_not_stream<murmurhash2_64a>(bench, "murmurhash2_64a", content);
+    _bench_hash_single_not_stream<murmurhash2_64b>(bench, "murmurhash2_64b", content);
 
 }
 
