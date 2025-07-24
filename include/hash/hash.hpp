@@ -93,13 +93,19 @@ public:
 
         m_total_len += input.size();
 
-        // `m_buffer_size < N` is for gcc
-        if (m_buffer_size + input.size() < N && m_buffer_size < N)
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif // __GNUC__
+        if (m_buffer_size + input.size() < N)
         {
             std::copy(input.begin(), input.end(), m_buffer.begin() + m_buffer_size);
             m_buffer_size += input.size();
             return;
         }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
 
         if (m_buffer_size > 0)
         {
@@ -418,8 +424,15 @@ public:
     template <detail::get_span_cpt Param>
     constexpr hash_result_t<T> operator()(Param&& p) noexcept
     {
-        m_val.update(detail::get_span(p));
-        return m_val.result();
+        if constexpr (is_stream_hash_v<T>)
+        {
+            m_val.update(detail::get_span(p));
+            return m_val.result();
+        }
+        else
+        {
+            return m_val(detail::get_span(p));
+        }
     }
 
 private:
