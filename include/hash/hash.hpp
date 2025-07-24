@@ -7,6 +7,8 @@
 #include <array>
 #include <algorithm>
 #include <bit>
+#include <cstdint>
+#include <ranges>
 
 namespace toy
 {
@@ -311,6 +313,21 @@ consteval hash_result_value<N> _set_result_value_hex_val(std::string_view val)
     return res;
 }
 
+template <std::ranges::random_access_range R>
+constexpr auto get_span(R&& r) noexcept
+{
+    return std::span(std::ranges::begin(r), std::ranges::end(r));
+}
+
+template <byte_char_cpt B, std::size_t N>
+constexpr auto get_span(const B(&s)[N]) noexcept
+{
+    return std::span(s, N-1);
+}
+
+template <typename T>
+concept get_span_cpt = requires (T t) { get_span(t); };
+
 } // namespace detail
 
 inline namespace literals
@@ -385,15 +402,11 @@ public:
     constexpr explicit hash(Args&&... args) noexcept : m_val(std::forward<Args>(args)...) {}
     constexpr ~hash() noexcept {}
 
-    constexpr hash& update(std::string_view s) noexcept requires is_stream_hash_v<T>
+    template <detail::get_span_cpt Param>
+        requires is_stream_hash_v<T>
+    constexpr hash& update(Param&& p) noexcept
     {
-        m_val.update(std::span<const char>(s.data(), s.size()));
-        return *this;
-    }
-
-    constexpr hash& update(std::u8string_view s) noexcept requires is_stream_hash_v<T>
-    {
-        m_val.update(std::span<const char8_t>(s.data(), s.size()));
+        m_val.update(detail::get_span(p));
         return *this;
     }
 
@@ -402,15 +415,10 @@ public:
         return m_val.result();
     }
 
-    constexpr hash_result_t<T> operator()(std::string_view s) noexcept
+    template <detail::get_span_cpt Param>
+    constexpr hash_result_t<T> operator()(Param&& p) noexcept
     {
-        m_val.update(std::span<const char>(s.data(), s.size()));
-        return m_val.result();
-    }
-
-    constexpr hash_result_t<T> operator()(std::u8string_view s) noexcept
-    {
-        m_val.update(std::span<const char8_t>(s.data(), s.size()));
+        m_val.update(detail::get_span(p));
         return m_val.result();
     }
 

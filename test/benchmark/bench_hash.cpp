@@ -29,10 +29,7 @@ void _bench_hash_single_not_stream(ankerl::nanobench::Bench& bench, const char* 
     });
 }
 
-template <typename StrView>
-    requires (std::is_same_v<std::decay_t<StrView>, std::string_view>
-                || std::is_same_v<std::decay_t<StrView>, std::u8string_view>)
-void bench_hash(ankerl::nanobench::Bench& bench, StrView content)
+void bench_hash(ankerl::nanobench::Bench& bench, auto&& content)
 {
     _bench_hash_single<xxhash32>(bench, "xxhash32", content);
     _bench_hash_single<xxhash64>(bench, "xxhash64", content);
