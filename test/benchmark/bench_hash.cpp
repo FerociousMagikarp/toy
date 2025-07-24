@@ -10,7 +10,7 @@
 using namespace toy;
 
 template <typename H>
-void _bench_hash_single(ankerl::nanobench::Bench& bench, const char* name, auto content)
+void _bench_hash_single(ankerl::nanobench::Bench& bench, const char* name, auto&& content)
 {
     bench.run(name, [content]() -> void
     {
@@ -20,7 +20,7 @@ void _bench_hash_single(ankerl::nanobench::Bench& bench, const char* name, auto 
 }
 
 template <typename H>
-void _bench_hash_single_not_stream(ankerl::nanobench::Bench& bench, const char* name, auto content)
+void _bench_hash_single_not_stream(ankerl::nanobench::Bench& bench, const char* name, auto&& content)
 {
     bench.run(name, [content]() -> void
     {
@@ -45,6 +45,8 @@ void bench_hash(ankerl::nanobench::Bench& bench, auto&& content)
     _bench_hash_single_not_stream<murmurhash2>(bench, "murmurhash2", content);
     _bench_hash_single_not_stream<murmurhash2_64a>(bench, "murmurhash2_64a", content);
     _bench_hash_single_not_stream<murmurhash2_64b>(bench, "murmurhash2_64b", content);
+    _bench_hash_single_not_stream<murmurhash2a>(bench, "murmurhash2a", content);
+    _bench_hash_single_not_stream<murmurhash3_x86_32>(bench, "murmurhash3_x86_32", content);
 
 }
 

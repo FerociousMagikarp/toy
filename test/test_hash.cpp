@@ -304,3 +304,51 @@ TEST_CASE("murmurhash2_64b")
     CHECK(hash<murmurhash2_64b>()(u8"测试") == "de5f4e8a9f6d0566"_hash_hex_64);
     CHECK(hash<murmurhash2_64b>(900812297)(u8"结果是多少") == "e8316082e2cab316"_hash_hex_64);
 }
+
+TEST_CASE("murmurhash2a")
+{
+    static_assert(hash<murmurhash2a>()("a") == "803888b"_hash_hex_32);
+    static_assert(hash<murmurhash2a>()("abcdefghijk") == "c233757e"_hash_hex_32);
+
+    CHECK(hash<murmurhash2a>(61755476)("") == "e6d91157"_hash_hex_32);
+    CHECK(hash<murmurhash2a>()("a") == "803888b"_hash_hex_32);
+    CHECK(hash<murmurhash2a>()("1234") == "905970e4"_hash_hex_32);
+    CHECK(hash<murmurhash2a>()("abcdefghi") == "c6578446"_hash_hex_32);
+    CHECK(hash<murmurhash2a>()("abcdefghij") == "3240af5e"_hash_hex_32);
+    CHECK(hash<murmurhash2a>()("abcdefghijk") == "c233757e"_hash_hex_32);
+
+    CHECK(hash<murmurhash2a>()(u8"测试") == "d0602e8a"_hash_hex_32);
+    CHECK(hash<murmurhash2a>(900812297)(u8"结果是多少") == "f158f6fa"_hash_hex_32);
+
+    auto hash_test = hash<murmurhash2a>();
+    hash_test.update("a");
+    CHECK(hash_test.result() == "803888b"_hash_hex_32);
+    hash_test.update("bcdefghi");
+    CHECK(hash_test.result() == "c6578446"_hash_hex_32);
+    hash_test.update("jk");
+    CHECK(hash_test.result() == "c233757e"_hash_hex_32);
+}
+
+TEST_CASE("murmurhash3_x86_32")
+{
+    static_assert(hash<murmurhash3_x86_32>()("a") == "3c2569b2"_hash_hex_32);
+    static_assert(hash<murmurhash3_x86_32>()("abcdefghijk") == "5f3b25df"_hash_hex_32);
+
+    CHECK(hash<murmurhash3_x86_32>(61755476)("") == "c418f5e4"_hash_hex_32);
+    CHECK(hash<murmurhash3_x86_32>()("a") == "3c2569b2"_hash_hex_32);
+    CHECK(hash<murmurhash3_x86_32>()("1234") == "721c5dc3"_hash_hex_32);
+    CHECK(hash<murmurhash3_x86_32>()("abcdefghi") == "421406f0"_hash_hex_32);
+    CHECK(hash<murmurhash3_x86_32>()("abcdefghij") == "88927791"_hash_hex_32);
+    CHECK(hash<murmurhash3_x86_32>()("abcdefghijk") == "5f3b25df"_hash_hex_32);
+
+    CHECK(hash<murmurhash3_x86_32>()(u8"测试") == "fe75a838"_hash_hex_32);
+    CHECK(hash<murmurhash3_x86_32>(900812297)(u8"结果是多少") == "c8fbcc27"_hash_hex_32);
+
+    auto hash_test = hash<murmurhash3_x86_32>();
+    hash_test.update("a");
+    CHECK(hash_test.result() == "3c2569b2"_hash_hex_32);
+    hash_test.update("bcdefghi");
+    CHECK(hash_test.result() == "421406f0"_hash_hex_32);
+    hash_test.update("jk");
+    CHECK(hash_test.result() == "5f3b25df"_hash_hex_32);
+}

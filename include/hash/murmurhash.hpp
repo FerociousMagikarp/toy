@@ -39,6 +39,17 @@ public:
     }
 };
 
+constexpr std::uint32_t murmurhash3_fmix32(std::uint32_t h) noexcept
+{
+    h ^= h >> 16;
+    h *= 0x85ebca6bu;
+    h ^= h >> 13;
+    h *= 0xc2b2ae35u;
+    h ^= h >> 16;
+
+    return h;
+}
+
 } // namespace detail
 
 // from https://github.com/aappleby/smhasher/blob/master/src/MurmurHash1.cpp
@@ -257,6 +268,134 @@ public:
     }
 };
 
+
+// from https://github.com/aappleby/smhasher/blob/master/src/MurmurHash2.cpp
+// uint32_t MurmurHash2A ( const void * key, int len, uint32_t seed )
+class murmurhash2a : public detail::_hash_stream_save_to_buffer_base<murmurhash2a, 4>
+{
+private:
+    friend class detail::_hash_stream_save_to_buffer_base<murmurhash2a, 4>;
+
+    using value_type = std::uint32_t;
+
+    constexpr static value_type M = 0x5bd1e995u;
+    constexpr static std::size_t MAX_BUFFER_SIZE = 4;
+
+    value_type m_seed = 0;
+    value_type m_hash = 0;
+
+    constexpr std::uint32_t mix(std::uint32_t h, std::uint32_t k) const noexcept
+    {
+        k *= M;
+        k ^= k >> 24;
+        k *= M;
+        h *= M;
+        h ^= k;
+
+        return h;
+    }
+
+    template <detail::byte_char_cpt B>
+    constexpr std::span<const B> consume_long(std::span<const B> input) noexcept
+    {
+        for (std::size_t i = 0; i + MAX_BUFFER_SIZE <= input.size(); i += MAX_BUFFER_SIZE)
+        {
+            auto k = detail::cast_from_bytes_at_unsafe<value_type>(input, i);
+            m_hash = mix(m_hash, k);
+        }
+
+        return input.subspan(input.size() - input.size() % MAX_BUFFER_SIZE);
+    }
+
+public:
+    constexpr explicit murmurhash2a(value_type seed = 0) noexcept : m_seed(seed), m_hash(seed) {}
+    constexpr ~murmurhash2a() noexcept {}
+
+    constexpr hash_result_value<32> result() const noexcept
+    {
+        hash_result_value<32> res;
+        std::uint32_t t = 0;
+        if (this->m_buffer_size > 0)
+        {
+            std::array<std::uint8_t, MAX_BUFFER_SIZE> buffer{};
+            std::copy_n(this->m_buffer.begin(), this->m_buffer_size, buffer.begin());
+            t = detail::cast_from_bytes<std::uint32_t>(std::span<const std::uint8_t, MAX_BUFFER_SIZE>{buffer});
+        }
+        auto hash = mix(m_hash, t);
+        hash = mix(hash, static_cast<std::uint32_t>(this->m_total_len));
+
+        hash ^= hash >> 13;
+        hash *= M;
+        hash ^= hash >> 15;
+        res.value = hash;
+
+        return res;
+    }
+};
+
+// from https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
+// void MurmurHash3_x86_32 ( const void * key, int len, uint32_t seed, void * out )
+class murmurhash3_x86_32 : public detail::_hash_stream_save_to_buffer_base<murmurhash3_x86_32, 4>
+{
+private:
+    friend class detail::_hash_stream_save_to_buffer_base<murmurhash3_x86_32, 4>;
+
+    using value_type = std::uint32_t;
+
+    constexpr static value_type C1 = 0xcc9e2d51u;
+    constexpr static value_type C2 = 0x1b873593u;
+    constexpr static value_type BIAS = 0xe6546b64u;
+    constexpr static std::size_t MAX_BUFFER_SIZE = 4;
+
+    value_type m_seed = 0;
+    value_type m_hash = 0;
+
+    template <detail::byte_char_cpt B>
+    constexpr std::span<const B> consume_long(std::span<const B> input) noexcept
+    {
+        for (std::size_t i = 0; i + MAX_BUFFER_SIZE <= input.size(); i += MAX_BUFFER_SIZE)
+        {
+            auto k = detail::cast_from_bytes_at_unsafe<value_type>(input, i);
+            k *= C1;
+            k = std::rotl(k, 15);
+            k *= C2;
+
+            m_hash ^= k;
+            m_hash = std::rotl(m_hash, 13);
+            m_hash = m_hash * 5 + BIAS;
+        }
+
+        return input.subspan(input.size() - input.size() % MAX_BUFFER_SIZE);
+    }
+
+public:
+    constexpr explicit murmurhash3_x86_32(value_type seed = 0) noexcept : m_seed(seed), m_hash(seed) {}
+    constexpr ~murmurhash3_x86_32() noexcept {}
+
+    constexpr hash_result_value<32> result() const noexcept
+    {
+        hash_result_value<32> res;
+
+        auto hash = m_hash;
+        if (this->m_buffer_size > 0)
+        {
+            std::array<std::uint8_t, MAX_BUFFER_SIZE> buffer{};
+            std::copy_n(this->m_buffer.begin(), this->m_buffer_size, buffer.begin());
+            auto k = detail::cast_from_bytes<std::uint32_t>(std::span<const std::uint8_t, MAX_BUFFER_SIZE>{buffer});
+
+            k *= C1;
+            k = std::rotl(k, 15);
+            k *= C2;
+            hash ^= k;
+        }
+
+        hash ^= static_cast<value_type>(this->m_total_len);
+        res.value = detail::murmurhash3_fmix32(hash);
+
+        return res;
+    }
+};
+
 template <>
 struct hash_result<murmurhash1>
 {
@@ -279,6 +418,18 @@ template <>
 struct hash_result<murmurhash2_64b>
 {
     using type = hash_result_value<64>;
+};
+
+template <>
+struct hash_result<murmurhash2a>
+{
+    using type = hash_result_value<32>;
+};
+
+template <>
+struct hash_result<murmurhash3_x86_32>
+{
+    using type = hash_result_value<32>;
 };
 
 template <>
