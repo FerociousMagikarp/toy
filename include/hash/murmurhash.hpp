@@ -50,6 +50,17 @@ constexpr std::uint32_t murmurhash3_fmix32(std::uint32_t h) noexcept
     return h;
 }
 
+constexpr std::uint64_t murmurhash3_fmix64(std::uint64_t h) noexcept
+{
+    h ^= h >> 33;
+    h *= 0xff51afd7ed558ccdull;
+    h ^= h >> 33;
+    h *= 0xc4ceb9fe1a85ec53ull;
+    h ^= h >> 33;
+
+    return h;
+}
+
 } // namespace detail
 
 // from https://github.com/aappleby/smhasher/blob/master/src/MurmurHash1.cpp
@@ -396,6 +407,245 @@ public:
     }
 };
 
+// from https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
+// void MurmurHash3_x86_32 ( const void * key, int len, uint32_t seed, void * out )
+class murmurhash3_x86_128 : public detail::_hash_stream_save_to_buffer_base<murmurhash3_x86_128, 16>
+{
+private:
+    friend class detail::_hash_stream_save_to_buffer_base<murmurhash3_x86_128, 16>;
+
+    using value_type = std::uint32_t;
+
+    constexpr static std::array<value_type, 4> C =
+    {
+        0x239b961bu,
+        0xab0e9789u,
+        0x38b34ae5u,
+        0xa1e38b93u
+    };
+    constexpr static std::array<value_type, 4> BIAS = 
+    {
+        0x561ccd1bu,
+        0x0bcaa747u,
+        0x96cd1c35u,
+        0x32ac3b17u
+    };
+    constexpr static std::size_t MAX_BUFFER_SIZE = 16;
+
+    value_type m_seed = 0;
+    std::array<value_type, 4> m_hash{};
+
+    template <detail::byte_char_cpt B>
+    constexpr std::span<const B> consume_long(std::span<const B> input) noexcept
+    {
+        for (std::size_t i = 0; i + MAX_BUFFER_SIZE <= input.size(); i += MAX_BUFFER_SIZE)
+        {
+            auto k = detail::cast_from_bytes_at_unsafe<value_type, 4>(input, i);
+            
+            k[0] *= C[0];
+            k[0] = std::rotl(k[0], 15);
+            k[0] *= C[1];
+            m_hash[0] ^= k[0];
+            m_hash[0] = std::rotl(m_hash[0], 19);
+            m_hash[0] += m_hash[1];
+            m_hash[0] = m_hash[0] * 5 + BIAS[0];
+
+            k[1] *= C[1];
+            k[1] = std::rotl(k[1], 16);
+            k[1] *= C[2];
+            m_hash[1] ^= k[1];
+            m_hash[1] = std::rotl(m_hash[1], 17);
+            m_hash[1] += m_hash[2];
+            m_hash[1] = m_hash[1] * 5 + BIAS[1];
+
+            k[2] *= C[2];
+            k[2] = std::rotl(k[2], 17);
+            k[2] *= C[3];
+            m_hash[2] ^= k[2];
+            m_hash[2] = std::rotl(m_hash[2], 15);
+            m_hash[2] += m_hash[3];
+            m_hash[2] = m_hash[2] * 5 + BIAS[2];
+
+            k[3] *= C[3];
+            k[3] = std::rotl(k[3], 18);
+            k[3] *= C[0];
+            m_hash[3] ^= k[3];
+            m_hash[3] = std::rotl(m_hash[3], 13);
+            m_hash[3] += m_hash[0];
+            m_hash[3] = m_hash[3] * 5 + BIAS[3];
+        }
+
+        return input.subspan(input.size() - input.size() % MAX_BUFFER_SIZE);
+    }
+
+public:
+    constexpr explicit murmurhash3_x86_128(value_type seed = 0) noexcept : m_seed(seed)
+    {
+        m_hash.fill(seed);
+    }
+    constexpr ~murmurhash3_x86_128() noexcept {}
+
+    constexpr hash_result_value<128> result() const noexcept
+    {
+        hash_result_value<128> res;
+
+        auto hash = m_hash;
+        if (this->m_buffer_size > 0)
+        {
+            std::array<std::uint8_t, MAX_BUFFER_SIZE> buffer{};
+            std::copy_n(this->m_buffer.begin(), this->m_buffer_size, buffer.begin());
+            auto k = detail::cast_from_bytes<value_type, 4>(std::span<const std::uint8_t, MAX_BUFFER_SIZE>{buffer});
+
+            switch (((this->m_buffer_size - 1) >> 2) & 0x03)
+            {
+            case 3:
+                k[3] *= C[3];
+                k[3] = std::rotl(k[3], 18);
+                k[3] *= C[0];
+                hash[3] ^= k[3];
+                [[fallthrough]];
+            case 2:
+                k[2] *= C[2];
+                k[2] = std::rotl(k[2], 17);
+                k[2] *= C[3];
+                hash[2] ^= k[2];
+                [[fallthrough]];
+            case 1:
+                k[1] *= C[1];
+                k[1] = std::rotl(k[1], 16);
+                k[1] *= C[2];
+                hash[1] ^= k[1];
+                [[fallthrough]];
+            case 0:
+                k[0] *= C[0];
+                k[0] = std::rotl(k[0], 15);
+                k[0] *= C[1];
+                hash[0] ^= k[0];
+                break;
+            default:
+                break;
+            }
+        }
+        hash[0] ^= static_cast<value_type>(this->m_total_len);
+        hash[1] ^= static_cast<value_type>(this->m_total_len);
+        hash[2] ^= static_cast<value_type>(this->m_total_len);
+        hash[3] ^= static_cast<value_type>(this->m_total_len);
+
+        hash[0] += hash[1]; hash[0] += hash[2]; hash[0] += hash[3];
+        hash[1] += hash[0]; hash[2] += hash[0]; hash[3] += hash[0];
+
+        hash[0] = detail::murmurhash3_fmix32(hash[0]);
+        hash[1] = detail::murmurhash3_fmix32(hash[1]);
+        hash[2] = detail::murmurhash3_fmix32(hash[2]);
+        hash[3] = detail::murmurhash3_fmix32(hash[3]);
+
+        hash[0] += hash[1]; hash[0] += hash[2]; hash[0] += hash[3];
+        hash[1] += hash[0]; hash[2] += hash[0]; hash[3] += hash[0];
+
+        res.value[0] = (static_cast<std::uint64_t>(hash[1]) << 32) | static_cast<std::uint64_t>(hash[0]);
+        res.value[1] = (static_cast<std::uint64_t>(hash[3]) << 32) | static_cast<std::uint64_t>(hash[2]);
+
+        return res;
+    }
+};
+
+// from https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
+// void MurmurHash3_x64_128 ( const void * key, int len, uint32_t seed, void * out )
+class murmurhash3_x64_128 : public detail::_hash_stream_save_to_buffer_base<murmurhash3_x64_128, 16>
+{
+private:
+    friend class detail::_hash_stream_save_to_buffer_base<murmurhash3_x64_128, 16>;
+
+    using value_type = std::uint64_t;
+
+    constexpr static std::array<value_type, 2> C =
+    {
+        0x87c37b91114253d5ull,
+        0x4cf5ad432745937full
+    };
+    constexpr static std::array<value_type, 2> BIAS = 
+    {
+        0x52dce729ull,
+        0x38495ab5ull
+    };
+    constexpr static std::size_t MAX_BUFFER_SIZE = 16;
+
+    value_type m_seed = 0;
+    std::array<value_type, 2> m_hash{};
+
+    template <detail::byte_char_cpt B>
+    constexpr std::span<const B> consume_long(std::span<const B> input) noexcept
+    {
+        for (std::size_t i = 0; i + MAX_BUFFER_SIZE <= input.size(); i += MAX_BUFFER_SIZE)
+        {
+            auto k = detail::cast_from_bytes_at_unsafe<value_type, 2>(input, i);
+            
+            k[0] *= C[0];
+            k[0] = std::rotl(k[0], 31);
+            k[0] *= C[1];
+            m_hash[0] ^= k[0];
+            m_hash[0] = std::rotl(m_hash[0], 27);
+            m_hash[0] += m_hash[1];
+            m_hash[0] = m_hash[0] * 5 + BIAS[0];
+
+            k[1] *= C[1];
+            k[1] = std::rotl(k[1], 33);
+            k[1] *= C[0];
+            m_hash[1] ^= k[1];
+            m_hash[1] = std::rotl(m_hash[1], 31);
+            m_hash[1] += m_hash[0];
+            m_hash[1] = m_hash[1] * 5 + BIAS[1];
+        }
+
+        return input.subspan(input.size() - input.size() % MAX_BUFFER_SIZE);
+    }
+
+public:
+    constexpr explicit murmurhash3_x64_128(value_type seed = 0) noexcept : m_seed(seed)
+    {
+        m_hash.fill(seed);
+    }
+    constexpr ~murmurhash3_x64_128() noexcept {}
+
+    constexpr hash_result_value<128> result() const noexcept
+    {
+        hash_result_value<128> res;
+
+        res.value = m_hash;
+        if (this->m_buffer_size > 0)
+        {
+            std::array<std::uint8_t, MAX_BUFFER_SIZE> buffer{};
+            std::copy_n(this->m_buffer.begin(), this->m_buffer_size, buffer.begin());
+            auto k = detail::cast_from_bytes<value_type, 2>(std::span<const std::uint8_t, MAX_BUFFER_SIZE>{buffer});
+
+            if (this->m_buffer_size > 8)
+            {
+                k[1] *= C[1];
+                k[1] = std::rotl(k[1], 33);
+                k[1] *= C[0];
+                res.value[1] ^= k[1];
+            }
+            k[0] *= C[0];
+            k[0] = std::rotl(k[0], 31);
+            k[0] *= C[1];
+            res.value[0] ^= k[0];
+        }
+        res.value[0] ^= static_cast<value_type>(this->m_total_len);
+        res.value[1] ^= static_cast<value_type>(this->m_total_len);
+
+        res.value[0] += res.value[1];
+        res.value[1] += res.value[0];
+
+        res.value[0] = detail::murmurhash3_fmix64(res.value[0]);
+        res.value[1] = detail::murmurhash3_fmix64(res.value[1]);
+
+        res.value[0] += res.value[1];
+        res.value[1] += res.value[0];
+
+        return res;
+    }
+};
+
 template <>
 struct hash_result<murmurhash1>
 {
@@ -430,6 +680,18 @@ template <>
 struct hash_result<murmurhash3_x86_32>
 {
     using type = hash_result_value<32>;
+};
+
+template <>
+struct hash_result<murmurhash3_x86_128>
+{
+    using type = hash_result_value<128>;
+};
+
+template <>
+struct hash_result<murmurhash3_x64_128>
+{
+    using type = hash_result_value<128>;
 };
 
 template <>

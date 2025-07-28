@@ -47,7 +47,8 @@ void bench_hash(ankerl::nanobench::Bench& bench, auto&& content)
     _bench_hash_single_not_stream<murmurhash2_64b>(bench, "murmurhash2_64b", content);
     _bench_hash_single_not_stream<murmurhash2a>(bench, "murmurhash2a", content);
     _bench_hash_single_not_stream<murmurhash3_x86_32>(bench, "murmurhash3_x86_32", content);
-
+    _bench_hash_single_not_stream<murmurhash3_x86_128>(bench, "murmurhash3_x86_128", content);
+    _bench_hash_single_not_stream<murmurhash3_x64_128>(bench, "murmurhash3_x64_128", content);
 }
 
 TEST_CASE("hash")
