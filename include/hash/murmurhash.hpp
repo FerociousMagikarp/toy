@@ -522,8 +522,6 @@ public:
                 k[0] *= C[1];
                 hash[0] ^= k[0];
                 break;
-            default:
-                break;
             }
         }
         hash[0] ^= static_cast<value_type>(this->m_total_len);
