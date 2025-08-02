@@ -51,6 +51,9 @@ TEST_CASE("avl_tree")
     CHECK(first_iter == tree.cbegin());
 
     tree.insert_unique(5);
+    first_iter--;
+    CHECK(*first_iter == 5);
+
     tree.insert_unique(2);
     tree.insert_unique(8);
     tree.insert_unique(9);
@@ -64,11 +67,18 @@ TEST_CASE("avl_tree")
     CHECK(repeat_insert_res == false);
 
     tree.insert_unique(8);
+    tree.insert_unique(10);
+    tree.insert_unique(11);
+    tree.insert_unique(12);
+    tree.insert_unique(0);
+    tree.insert_unique(-1);
+    tree.insert_unique(-2);
+    tree.insert_unique(12);
     // show_avl_tree(tree);
 
-    CHECK(tree.size() == 9);
+    CHECK(tree.size() == 15);
 
-    int value = 1;
+    int value = -2;
     for (auto iter = tree.begin(); iter != tree.end(); ++iter)
     {
         CHECK(*iter == value++);
@@ -79,7 +89,5 @@ TEST_CASE("avl_tree")
     for (auto iter = tree.rbegin(); iter != tree.rend(); ++iter)
     {
         CHECK(*iter == --value);
-        if (value < 0)
-            break;
     }
 }
