@@ -224,8 +224,8 @@ class avl_tree_iterator_base
 protected:
     using _self = Derived;
     using _type_traits = _avl_tree_iterator_member_types<Derived>;
-    using _base_ptr = _type_traits::_base_ptr;
-    using _node_ptr = _type_traits::_node_ptr;
+    using _base_ptr = typename _type_traits::_base_ptr;
+    using _node_ptr = typename _type_traits::_node_ptr;
 
     _base_ptr m_node;
 
@@ -276,8 +276,8 @@ private:
     using _base     = avl_tree_iterator_base<T, _self>;
 
     using _type_traits = _avl_tree_iterator_member_types<_self>;
-    using _base_ptr = _type_traits::_base_ptr;
-    using _node_ptr = _type_traits::_node_ptr;
+    using _base_ptr = typename _type_traits::_base_ptr;
+    using _node_ptr = typename _type_traits::_node_ptr;
 
 public:
     using difference_type   = typename _type_traits::difference_type;
@@ -298,8 +298,8 @@ private:
     using _base     = avl_tree_iterator_base<T, _self>;
 
     using _type_traits = _avl_tree_iterator_member_types<_self>;
-    using _base_ptr = _type_traits::_base_ptr;
-    using _node_ptr = _type_traits::_node_ptr;
+    using _base_ptr = typename _type_traits::_base_ptr;
+    using _node_ptr = typename _type_traits::_node_ptr;
 
 public:
     using difference_type   = typename _type_traits::difference_type;
@@ -381,10 +381,12 @@ public:
 
     void _insert_rebalence(_base_ptr_type node) noexcept
     {
+        using signed_size = std::make_signed_t<std::size_t>;
+
         while (node != &m_header)
         {
             auto [left_height, right_height] = _get_child_node_height(node);
-            if (std::abs(static_cast<ssize_t>(left_height) - static_cast<ssize_t>(right_height)) > 1)
+            if (std::abs(static_cast<signed_size>(left_height) - static_cast<signed_size>(right_height)) > 1)
             {
                 if (left_height < right_height)
                 {

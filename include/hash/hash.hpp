@@ -93,19 +93,19 @@ public:
 
         m_total_len += input.size();
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined (__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif // __GNUC__
+#endif // __GNUC__ && !__clang__
         if (m_buffer_size + input.size() < N)
         {
             std::copy(input.begin(), input.end(), m_buffer.begin() + m_buffer_size);
             m_buffer_size += input.size();
             return;
         }
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined (__clang__)
 #pragma GCC diagnostic pop
-#endif // __GNUC__
+#endif // __GNUC__ && !__clang__
 
         if (m_buffer_size > 0)
         {
