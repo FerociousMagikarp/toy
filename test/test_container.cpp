@@ -1,10 +1,17 @@
 #include "doctest/doctest.h"
 #include "container/detail/avl.hpp"
+#include "container/detail/node.hpp"
+#include "container/detail/node_traits.hpp"
+#include "container/detail/node_allocator.hpp"
 #include <iostream>
 
 using namespace toy;
 
-using _test_avl_tree_t = detail::avl_tree<int, int, std::identity, std::less<int>, std::allocator<int>>;
+using _test_node = detail::container_node<int, detail::avl_node_base>;
+using _test_avl_node_traits = detail::node_traits<_test_node, std::identity, 0>;
+using _test_avl_tree_t = detail::avl_tree<int, int, _test_avl_node_traits, std::less<int>>;
+using _test_node_alloc = detail::node_allocator<int, _test_node>;
+using _test_avl_iterator = detail::avl_tree_iterator<_test_avl_node_traits>;
 
 [[maybe_unused]] static void show_avl_tree(const _test_avl_tree_t& tree)
 {
@@ -16,12 +23,12 @@ using _test_avl_tree_t = detail::avl_tree<int, int, std::identity, std::less<int
     }
 
     // generate by deepseek
-    auto print_tree = [&](std::string prefix, const _test_avl_tree_t::_base_ptr_type node, bool is_left, auto&& print_tree) -> void
+    auto print_tree = [&](std::string prefix, const _test_avl_tree_t::_base_ptr node, bool is_left, auto&& print_tree) -> void
     {
         if (node == nullptr)
             return;
-        std::cout << prefix << (is_left ? "├──" : "└──");
-        std::cout << *static_cast<_test_avl_tree_t::_node_ptr_type>(node)->value_ptr() << "  (h: " << node->height << ")\n";
+        std::cout << prefix << (is_left ? "|----" : "*----");
+        std::cout << "{" << *static_cast<_test_node*>(node)->value_ptr() << "}  (h: " << node->height << ")\n";
 
         print_tree(prefix + (is_left ? "|  " : "   "), node->left, true, print_tree);
         print_tree(prefix + (is_left ? "|  " : "   "), node->right, false, print_tree);
@@ -32,62 +39,104 @@ using _test_avl_tree_t = detail::avl_tree<int, int, std::identity, std::less<int
     std::cout << std::endl;
 }
 
+static bool check_avl_tree_balance(const _test_avl_tree_t& tree)
+{
+    using signed_size = std::make_signed_t<std::size_t>;
+
+    auto check_tree = [&](const _test_avl_tree_t::_base_ptr node, auto&& check_tree) -> bool
+    {
+        if (node == nullptr)
+            return true;
+        if (!check_tree(node->left, check_tree))
+            return false;
+        if (!check_tree(node->right, check_tree))
+            return false;
+        auto [left_height, right_height] = detail::_get_child_node_height(node);
+        if (node->height != std::max(left_height, right_height) + 1)
+            return false;
+        if (std::abs(static_cast<signed_size>(left_height) - static_cast<signed_size>(right_height)) > 1)
+            return false;
+        return true;
+    };
+
+    return check_tree(tree.m_header.parent, check_tree);
+}
+
+template <typename Arg>
+std::pair<_test_avl_iterator, bool> insert_avl_node(_test_avl_tree_t& tree, Arg&& val)
+{
+    // only test
+    auto node_alloc = _test_node_alloc();
+
+    auto [parent_pos, insert_left] = tree.get_insert_unique_pos(_test_avl_node_traits::get_key(val));
+    if (parent_pos == nullptr)
+        return std::make_pair(_test_avl_iterator{tree.end()}, false);
+    auto res = tree.insert_node(parent_pos, insert_left, node_alloc.create_node(std::forward<Arg>(val)));
+    return std::make_pair(_test_avl_iterator{res}, true);
+}
+
 TEST_CASE("avl_tree")
 {
     const auto const_tree = _test_avl_tree_t{};
     CHECK(const_tree.empty() == true);
     CHECK(const_tree.begin() == const_tree.end());
-    CHECK(const_tree.rbegin() == const_tree.rend());
-    CHECK(const_tree.max_size() > 0);
 
 	auto tree = _test_avl_tree_t{};
-	auto [first_iter, first_insert_res] = tree.insert_unique(7);
+	auto [first_iter, first_insert_res] = insert_avl_node(tree, 7);
+    CHECK(check_avl_tree_balance(tree));
     CHECK(first_insert_res == true);
     CHECK(*first_iter == 7);
     first_iter++;
-    CHECK(first_iter == tree.cend());
+    CHECK(first_iter == _test_avl_iterator(tree.end()));
     first_iter--;
     CHECK(*first_iter == 7);
-    CHECK(first_iter == tree.cbegin());
+    CHECK(first_iter == _test_avl_iterator(tree.begin()));
 
-    tree.insert_unique(5);
+    insert_avl_node(tree, 5);
+    CHECK(check_avl_tree_balance(tree));
     first_iter--;
     CHECK(*first_iter == 5);
+    insert_avl_node(tree, 2);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 8);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 9);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 6);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 1);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 4);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 3);
+    CHECK(check_avl_tree_balance(tree));
 
-    tree.insert_unique(2);
-    tree.insert_unique(8);
-    tree.insert_unique(9);
-    tree.insert_unique(6);
-    tree.insert_unique(1);
-    tree.insert_unique(4);
-    tree.insert_unique(3);
-
-    auto [repeat_iter, repeat_insert_res] = tree.insert_unique(2);
-    CHECK(repeat_iter == tree.cend());
+    auto [repeat_iter, repeat_insert_res] = insert_avl_node(tree, 2);
     CHECK(repeat_insert_res == false);
 
-    tree.insert_unique(8);
-    tree.insert_unique(10);
-    tree.insert_unique(11);
-    tree.insert_unique(12);
-    tree.insert_unique(0);
-    tree.insert_unique(-1);
-    tree.insert_unique(-2);
-    tree.insert_unique(12);
+    insert_avl_node(tree, 8);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 10);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 11);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 12);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 0);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, -1);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, -2);
+    CHECK(check_avl_tree_balance(tree));
+    insert_avl_node(tree, 12);
+    CHECK(check_avl_tree_balance(tree));
     // show_avl_tree(tree);
 
     CHECK(tree.size() == 15);
 
     int value = -2;
-    for (auto iter = tree.begin(); iter != tree.end(); ++iter)
+    for (auto iter = _test_avl_iterator(tree.begin()); iter != _test_avl_iterator(tree.end()); ++iter)
     {
         CHECK(*iter == value++);
-    }
-
-    CHECK(tree.crbegin() == tree.rbegin());
-    CHECK(tree.crend() == tree.rend());
-    for (auto iter = tree.rbegin(); iter != tree.rend(); ++iter)
-    {
-        CHECK(*iter == --value);
     }
 }

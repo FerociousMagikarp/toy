@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <memory>
 #include <cstddef>
 #include <type_traits>
@@ -8,7 +7,6 @@
 
 namespace toy::detail
 {
-
 struct avl_node_base
 {
     using base_node_ptr = avl_node_base*;
@@ -172,53 +170,42 @@ inline void _avl_tree_rotate_right(avl_node_base* x, avl_node_base*& root) noexc
     x->parent = y;
 }
 
-template <typename T>
-struct avl_node final : public avl_node_base
-{
-    alignas(T) std::array<std::byte, sizeof(T)> value;
-
-    void* value_addr() noexcept { return static_cast<void*>(value.data()); }
-    const void* value_addr() const noexcept { return static_cast<const void*>(value.data()); }
-    T* value_ptr() noexcept { return static_cast<T*>(value_addr()); }
-    const T* value_ptr() const noexcept { return static_cast<const T*>(value_addr()); }
-};
-
-template <typename T>
+template <typename NodeTraits>
 class avl_tree_iterator;
 
-template <typename T>
+template <typename NodeTraits>
 class avl_tree_const_iterator;
 
 template <typename Iter>
 struct _avl_tree_iterator_member_types;
 
-template <typename T>
-struct _avl_tree_iterator_member_types<avl_tree_iterator<T>>
+template <typename NodeTraits>
+struct _avl_tree_iterator_member_types<avl_tree_iterator<NodeTraits>>
 {
     using difference_type   = std::ptrdiff_t;
-    using value_type        = T;
-    using pointer           = T*;
-    using reference         = T&;
+    using value_type        = typename NodeTraits::value_type;
+    using pointer           = value_type*;
+    using reference         = value_type&;
     using iterator_category = std::bidirectional_iterator_tag;
 
     using _base_ptr = avl_node_base*;
-    using _node_ptr = avl_node<T>*;
+    using _node_ptr = typename NodeTraits::node_ptr;
 };
 
-template <typename T>
-struct _avl_tree_iterator_member_types<avl_tree_const_iterator<T>>
+template <typename NodeTraits>
+struct _avl_tree_iterator_member_types<avl_tree_const_iterator<NodeTraits>>
 {
     using difference_type   = std::ptrdiff_t;
-    using value_type        = T;
-    using pointer           = const T*;
-    using reference         = const T&;
+    using value_type        = typename NodeTraits::value_type;
+    using pointer           = const value_type*;
+    using reference         = const value_type&;
     using iterator_category = std::bidirectional_iterator_tag;
 
     using _base_ptr = const avl_node_base*;
-    using _node_ptr = const avl_node<T>*;
+    using _node_ptr = const typename NodeTraits::node_ptr;
 };
 
-template <typename T, typename Derived>
+template <typename NodeTraits, typename Derived>
 class avl_tree_iterator_base
 {
 protected:
@@ -239,8 +226,8 @@ public:
     avl_tree_iterator_base() noexcept : m_node{} {}
     explicit avl_tree_iterator_base(_base_ptr node) : m_node(node) {}
 
-    _reference operator*() const noexcept { return *static_cast<_node_ptr>(m_node)->value_ptr(); }
-    _pointer operator->() const noexcept { return static_cast<_node_ptr>(m_node)->value_ptr(); }
+    _reference operator*() const noexcept { return *NodeTraits::value_ptr(m_node); }
+    _pointer operator->() const noexcept { return NodeTraits::value_ptr(m_node); }
     _self& operator++() noexcept
     {
         m_node = _avl_node_increment(m_node);
@@ -266,18 +253,18 @@ public:
     friend bool operator==(const _self& x, const _self& y) noexcept { return x.m_node == y.m_node; }
 };
 
-template <typename T>
-class avl_tree_iterator final : public avl_tree_iterator_base<T, avl_tree_iterator<T>>
+template <typename NodeTraits>
+class avl_tree_iterator final : public avl_tree_iterator_base<NodeTraits, avl_tree_iterator<NodeTraits>>
 {
 private:
-    friend class avl_tree_const_iterator<T>;
+    friend class avl_tree_const_iterator<NodeTraits>;
 
-    using _self     = avl_tree_iterator<T>;
-    using _base     = avl_tree_iterator_base<T, _self>;
+    using _self     = avl_tree_iterator<NodeTraits>;
+    using _base     = avl_tree_iterator_base<NodeTraits, _self>;
 
     using _type_traits = _avl_tree_iterator_member_types<_self>;
-    using _base_ptr = typename _type_traits::_base_ptr;
-    using _node_ptr = typename _type_traits::_node_ptr;
+    using _base_ptr    = typename _type_traits::_base_ptr;
+    using _node_ptr    = typename _type_traits::_node_ptr;
 
 public:
     using difference_type   = typename _type_traits::difference_type;
@@ -290,16 +277,19 @@ public:
     explicit avl_tree_iterator(_base_ptr node) : _base(node) {}
 };
 
-template <typename T>
-class avl_tree_const_iterator final : public avl_tree_iterator_base<T, avl_tree_const_iterator<T>>
+template <typename NodeTraits>
+class avl_tree_const_iterator final : public avl_tree_iterator_base<NodeTraits, avl_tree_const_iterator<NodeTraits>>
 {
 private:
-    using _self     = avl_tree_const_iterator<T>;
-    using _base     = avl_tree_iterator_base<T, _self>;
+    template <typename _Traits>
+    friend _Traits::base_ptr _get_avl_iterator_ptr(avl_tree_const_iterator<_Traits>) noexcept;
+
+    using _self     = avl_tree_const_iterator<NodeTraits>;
+    using _base     = avl_tree_iterator_base<NodeTraits, _self>;
 
     using _type_traits = _avl_tree_iterator_member_types<_self>;
-    using _base_ptr = typename _type_traits::_base_ptr;
-    using _node_ptr = typename _type_traits::_node_ptr;
+    using _base_ptr    = typename _type_traits::_base_ptr;
+    using _node_ptr    = typename _type_traits::_node_ptr;
 
 public:
     using difference_type   = typename _type_traits::difference_type;
@@ -310,10 +300,16 @@ public:
 
     avl_tree_const_iterator() noexcept : _base() {}
     explicit avl_tree_const_iterator(_base_ptr node) noexcept : _base(node) {}
-    avl_tree_const_iterator(const avl_tree_iterator<T>& it) noexcept : _base(it.m_node) {}
+    avl_tree_const_iterator(const avl_tree_iterator<NodeTraits>& it) noexcept : _base(it.m_node) {}
 };
 
-template <typename Key, typename Val, typename KeyOfValue, typename Compare, typename Alloc>
+template <typename _Traits>
+_Traits::base_ptr _get_avl_iterator_ptr(avl_tree_const_iterator<_Traits> iter) noexcept
+{
+    return const_cast<_Traits::base_ptr>(iter.m_node);
+}
+
+template <typename Key, typename Val, typename NodeTraits, typename Compare>
 class avl_tree
 {
 public:
@@ -324,66 +320,114 @@ public:
     using size_type       = std::size_t;
     using difference_type = std::ptrdiff_t;
     using key_compare     = Compare;
-    using allocator_type  = Alloc;
     using reference       = value_type&;
     using const_reference = const value_type&;
-    using pointer         = typename std::allocator_traits<allocator_type>::pointer;
-    using const_pointer   = typename std::allocator_traits<allocator_type>::const_pointer;
+    using pointer         = value_type*;
+    using const_pointer   = const value_type*;
 
-    using iterator               = avl_tree_iterator<value_type>;
-    using const_iterator         = avl_tree_const_iterator<value_type>;
-    using reverse_iterator       = std::reverse_iterator<iterator>;
-    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using _node_traits = NodeTraits;
 
-    using _node_type         = avl_node<value_type>;
-    using _node_ptr_type     = _node_type*;
-    using _base_ptr_type     = avl_node_base*;
-    using _alloc_traits      = std::allocator_traits<allocator_type>;
-    using _node_allocator    = typename _alloc_traits::template rebind_alloc<_node_type>;
-    using _node_alloc_traits = std::allocator_traits<_node_allocator>;
+    // using iterator               = avl_tree_iterator<_node_traits>;
+    // using const_iterator         = avl_tree_const_iterator<_node_traits>;
+    // using reverse_iterator       = std::reverse_iterator<iterator>;
+    // using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    using _base_ptr       = avl_node_base*;
+    using _const_base_ptr = const avl_node_base*;
 
     avl_header_node m_header;
-    [[no_unique_address]] _node_allocator m_node_alloc;
     [[no_unique_address]] Compare m_compare;
 
-    const key_type& _get_key(_base_ptr_type node_ptr) const noexcept
+    std::pair<_base_ptr, bool> get_insert_unique_pos(const key_type& key)
+        noexcept(noexcept(_node_traits::get_key(std::declval<_base_ptr>())))
     {
-        return KeyOfValue{}(*static_cast<_node_ptr_type>(node_ptr)->value_ptr());
-    }
+        _base_ptr pos = m_header.parent;
+        _base_ptr parent = std::addressof(m_header);
+        bool insert_left = true;
 
-    _node_ptr_type _get_left(_base_ptr_type node_ptr) const noexcept
-    {
-        return static_cast<_node_ptr_type>(node_ptr->left);
-    }
-
-    _node_ptr_type _get_right(_base_ptr_type node_ptr) const noexcept
-    {
-        return static_cast<_node_ptr_type>(node_ptr->right);
-    }
-
-    _node_ptr_type _get_root() const noexcept { return static_cast<_node_ptr_type>(m_header.parent); }
-
-    template <typename Arg>
-    _node_ptr_type _construct_node(Arg&& arg)
-    {
-        auto node = m_node_alloc.allocate(1);
-        try
+        while (pos != nullptr)
         {
-            _node_alloc_traits::construct(m_node_alloc, node->value_ptr(), std::forward<Arg>(arg));
+            parent = pos;
+            insert_left = m_compare(key, _node_traits::get_key(pos));
+            pos = insert_left ? pos->left : pos->right;
         }
-        catch (const std::exception& e)
+
+        if (insert_left)
         {
-            m_node_alloc.deallocate(node, 1);
-            throw e;
+            if (parent != m_header.left)
+            {
+                if (!m_compare(_node_traits::get_key(_avl_node_decrement(parent)), key))
+                    return std::make_pair(nullptr, false);
+            }
         }
+        else if (!m_compare(_node_traits::get_key(parent), key))
+        {
+            return std::make_pair(nullptr, false);
+        }
+
+        return std::make_pair(parent, insert_left);
+    }
+
+    _base_ptr insert_node(_base_ptr parent, bool insert_left, _base_ptr node) noexcept
+    {
+        m_header.height++;
+        node->parent = parent;
+        node->left = node->right = nullptr;
+        node->height = 1;
+
+        if (insert_left)
+        {
+            parent->left = node;
+            if (parent == std::addressof(m_header))
+            {
+                parent->parent = node;
+                parent->right = node;
+            }
+            else if (parent == m_header.left)
+            {
+                m_header.left = node;
+            }
+        }
+        else
+        {
+            parent->right = node;
+            if (parent == m_header.right)
+            {
+                m_header.right = node;
+            }
+        }
+
+        rebalence(parent);
+
         return node;
     }
 
-    void _insert_rebalence(_base_ptr_type node) noexcept
+    _base_ptr       begin() noexcept       { return m_header.left; }
+    _const_base_ptr begin() const noexcept { return m_header.left; }
+    _base_ptr       end()   noexcept       { return std::addressof(m_header); }
+    _const_base_ptr end()   const noexcept { return std::addressof(m_header); }
+    // iterator               begin()   noexcept       { return iterator(m_header.left); }
+    // const_iterator         begin()   const noexcept { return const_iterator(m_header.left); }
+    // const_iterator         cbegin()  const noexcept { return const_iterator(m_header.left); }
+    // iterator               end()     noexcept       { return iterator(std::addressof(m_header)); }
+    // const_iterator         end()     const noexcept { return const_iterator(std::addressof(m_header)); }
+    // const_iterator         cend()    const noexcept { return const_iterator(std::addressof(m_header)); }
+    // reverse_iterator       rbegin()  noexcept       { return reverse_iterator(end()); }
+    // const_reverse_iterator rbegin()  const noexcept { return const_reverse_iterator(end()); }
+    // const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(end()); }
+    // reverse_iterator       rend()    noexcept       { return reverse_iterator(begin()); }
+    // const_reverse_iterator rend()    const noexcept { return const_reverse_iterator(begin()); }
+    // const_reverse_iterator crend()   const noexcept { return const_reverse_iterator(begin()); }
+
+    bool empty() const noexcept { return m_header.height == 0; }
+    size_type size() const noexcept { return m_header.height; }
+
+private:
+    void rebalence(_base_ptr node) noexcept
     {
         using signed_size = std::make_signed_t<std::size_t>;
 
-        while (node != &m_header)
+        while (node != std::addressof(m_header))
         {
             auto [left_height, right_height] = _get_child_node_height(node);
             if (std::abs(static_cast<signed_size>(left_height) - static_cast<signed_size>(right_height)) > 1)
@@ -410,7 +454,7 @@ public:
                     }
                     _avl_tree_rotate_right(node, m_header.parent);
                 }
-                
+
                 do
                 {
                     auto height = _get_node_height(node);
@@ -418,7 +462,7 @@ public:
                         break;
                     node->height = height;
                     node = node->parent;
-                } while (node != &m_header);
+                } while (node != std::addressof(m_header));
                 break;
             }
             auto height = std::max(left_height, right_height) + 1;
@@ -429,86 +473,6 @@ public:
         }
     }
 
-    template <typename Arg>
-    std::pair<iterator, bool> insert_unique(Arg&& arg)
-    {
-        const key_type& k = KeyOfValue{}(arg);
-        _node_ptr_type x = _get_root();
-        _base_ptr_type y = &m_header;
-        bool comp = true;
-
-        while (x != nullptr)
-        {
-            y = x;
-            comp = m_compare(k, _get_key(x));
-            x = comp ? _get_left(x) : _get_right(x);
-        }
-
-        if (comp)
-        {
-            if (y != m_header.left)
-            {
-                if (!m_compare(_get_key(_avl_node_decrement(y)), k))
-                    return std::make_pair(end(), false);
-            }
-        }
-        else if (!m_compare(_get_key(y), k))
-        {
-            return std::make_pair(end(), false);
-        }
-
-        m_header.height++;
-        auto node = _construct_node(std::forward<Arg>(arg));
-
-        node->parent = y;
-        node->left = node->right = nullptr;
-        node->height = 1;
-
-        if (comp)
-        {
-            y->left = node;
-            if (y == &m_header)
-            {
-                y->parent = node;
-                y->right = node;
-            }
-            else if (y == m_header.left)
-            {
-                m_header.left = node;
-            }
-        }
-        else
-        {
-            y->right = node;
-            if (y == m_header.right)
-            {
-                m_header.right = node;
-            }
-        }
-
-        _insert_rebalence(node->parent);
-
-        return std::make_pair(iterator(node), true);
-    }
-
-    constexpr allocator_type get_allocator() noexcept { return allocator_type(m_node_alloc); }
-
-    iterator               begin()   noexcept       { return iterator(m_header.left); }
-    const_iterator         begin()   const noexcept { return const_iterator(m_header.left); }
-    const_iterator         cbegin()  const noexcept { return const_iterator(m_header.left); }
-    iterator               end()     noexcept       { return iterator(&m_header); }
-    const_iterator         end()     const noexcept { return const_iterator(&m_header); }
-    const_iterator         cend()    const noexcept { return const_iterator(&m_header); }
-    reverse_iterator       rbegin()  noexcept       { return reverse_iterator(end()); }
-    const_reverse_iterator rbegin()  const noexcept { return const_reverse_iterator(end()); }
-    const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(end()); }
-    reverse_iterator       rend()    noexcept       { return reverse_iterator(begin()); }
-    const_reverse_iterator rend()    const noexcept { return const_reverse_iterator(begin()); }
-    const_reverse_iterator crend()   const noexcept { return const_reverse_iterator(begin()); }
-
-    bool empty() const noexcept { return m_header.height == 0; }
-    size_type size() const noexcept { return m_header.height; }
-    size_type max_size() const noexcept { return _alloc_traits::max_size(m_node_alloc); }
 };
 
 } // namespace toy::detail
