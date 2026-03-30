@@ -282,7 +282,7 @@ class avl_tree_const_iterator final : public avl_tree_iterator_base<NodeTraits, 
 {
 private:
     template <typename _Traits>
-    friend _Traits::base_ptr _get_avl_iterator_ptr(avl_tree_const_iterator<_Traits>) noexcept;
+    friend typename _Traits::base_ptr _get_avl_iterator_ptr(avl_tree_const_iterator<_Traits>) noexcept;
 
     using _self     = avl_tree_const_iterator<NodeTraits>;
     using _base     = avl_tree_iterator_base<NodeTraits, _self>;
@@ -304,9 +304,9 @@ public:
 };
 
 template <typename _Traits>
-_Traits::base_ptr _get_avl_iterator_ptr(avl_tree_const_iterator<_Traits> iter) noexcept
+typename _Traits::base_ptr _get_avl_iterator_ptr(avl_tree_const_iterator<_Traits> iter) noexcept
 {
-    return const_cast<_Traits::base_ptr>(iter.m_node);
+    return const_cast<typename _Traits::base_ptr>(iter.m_node);
 }
 
 template <typename Key, typename Val, typename NodeTraits, typename Compare>

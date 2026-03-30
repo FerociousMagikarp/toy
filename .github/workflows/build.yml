@@ -10,7 +10,7 @@ jobs:
         compiler: [gcc-12, clang-15]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Install Dependencies
         run: |
@@ -55,7 +55,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       # CMake 工具链配置
       - name: Configure CMake
@@ -83,10 +83,10 @@ jobs:
           ./build/test/benchmark/Release/toy_bench.exe
 
   macos-build:
-    runs-on: macos-13
+    runs-on: macos-15
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Configure CMake
         run: |
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Install tools
       run: |
