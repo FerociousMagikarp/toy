@@ -496,33 +496,32 @@ public:
             std::copy_n(this->m_buffer.begin(), this->m_buffer_size, buffer.begin());
             auto k = detail::cast_from_bytes<value_type, 4>(std::span<const std::uint8_t, MAX_BUFFER_SIZE>{buffer});
 
-            switch (((this->m_buffer_size - 1) >> 2) & 0x03)
+            auto val = ((this->m_buffer_size - 1) >> 2) & 0x03;
+            if (val >= 3)
             {
-            case 3:
                 k[3] *= C[3];
                 k[3] = std::rotl(k[3], 18);
                 k[3] *= C[0];
                 hash[3] ^= k[3];
-                [[fallthrough]];
-            case 2:
+            }
+            if (val >= 2)
+            {
                 k[2] *= C[2];
                 k[2] = std::rotl(k[2], 17);
                 k[2] *= C[3];
                 hash[2] ^= k[2];
-                [[fallthrough]];
-            case 1:
+            }
+            if (val >= 1)
+            {
                 k[1] *= C[1];
                 k[1] = std::rotl(k[1], 16);
                 k[1] *= C[2];
                 hash[1] ^= k[1];
-                [[fallthrough]];
-            case 0:
-                k[0] *= C[0];
-                k[0] = std::rotl(k[0], 15);
-                k[0] *= C[1];
-                hash[0] ^= k[0];
-                break;
             }
+            k[0] *= C[0];
+            k[0] = std::rotl(k[0], 15);
+            k[0] *= C[1];
+            hash[0] ^= k[0];
         }
         hash[0] ^= static_cast<value_type>(this->m_total_len);
         hash[1] ^= static_cast<value_type>(this->m_total_len);

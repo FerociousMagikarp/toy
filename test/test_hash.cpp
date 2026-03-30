@@ -3,6 +3,7 @@
 #include "hash/md.hpp"
 #include "hash/murmurhash.hpp"
 #include "doctest/doctest.h"
+#include <iostream>
 
 namespace toy
 {
@@ -65,12 +66,14 @@ TEST_CASE("xxhash32")
     CHECK(hash<xxhash32>().update("abcdefghijklmnopqrstuvwxyz123456").result() == "865bc9b6"_hash_hex_32);
     CHECK(hash<xxhash32>().update("abcdefghijklmnopqrstuvwxyz1234567").result() == "f3c42fe1"_hash_hex_32);
 
+    CHECK(hash<xxhash32>().update(u8"").result() == "02cc5d05"_hash_hex_32);
     CHECK(hash<xxhash32>().update(u8"测试").result() == "bc8c4d48"_hash_hex_32);
     CHECK(hash<xxhash32>(1332727061).update(u8"测试").result() == "82828525"_hash_hex_32);
     CHECK(hash<xxhash32>().update(u8"无使尨也吠").result() == "d72766ef"_hash_hex_32);
     CHECK(hash<xxhash32>().update(u8"鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波").result() == "c451dd7a"_hash_hex_32);
     CHECK(hash<xxhash32>().update(u8"鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波.").result() == "2e0a60ad"_hash_hex_32);
     CHECK(hash<xxhash32>().update(u8"鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波。").result() == "b6c1c166"_hash_hex_32);
+    CHECK(hash<xxhash32>().update(u8"安得").update(u8"广厦千万间，").update(u8"大庇天下寒士俱欢颜，风雨不动安如山。").result() == "32cc74a4"_hash_hex_32);
 
     auto hash_test_1 = hash<xxhash32>(1918516007);
     CHECK(hash_test_1.update("abc").result() == "647a2fa5"_hash_hex_32);
@@ -100,6 +103,7 @@ TEST_CASE("xxhash64")
     CHECK(hash<xxhash64>().update("abcdefghijklmnopqrstuvwxyz123456").result() == "0022ee3b5a18531b"_hash_hex_64);
     CHECK(hash<xxhash64>().update("abcdefghijklmnopqrstuvwxyz1234567").result() == "23bbd16d29353c5f"_hash_hex_64);
 
+    CHECK(hash<xxhash64>().update(u8"").result() == "ef46db3751d8e999"_hash_hex_64);
     CHECK(hash<xxhash64>().update(u8"测试").result() == "403d66837e9bc61f"_hash_hex_64);
     CHECK(hash<xxhash64>(1332727061).update(u8"测试").result() == "8b79d3346ad56ea2"_hash_hex_64);
     CHECK(hash<xxhash64>().update(u8"无使尨也吠").result() == "a4800f1d00dd325b"_hash_hex_64);
@@ -155,7 +159,10 @@ TEST_CASE("md2")
     CHECK(hash<md2>().update("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.").result() == "d12f3647dff5c86f003bb3014f8f18eb"_hash_hex_128);
     CHECK(hash<md2>().update("12345678901234567890123456789012345678901234567890123456789012345678901234567890").result() == "d5976f79d83d3a0dc9806c3c66f3efd8"_hash_hex_128);
 
+    CHECK(hash<md2>().update(u8"").result() == "8350e5a3e24c153df2275c9f80692773"_hash_hex_128);
     CHECK(hash<md2>().update(u8"测试").result() == "a8d6fb5a5735c294e9fb41ba8ae98eaf"_hash_hex_128);
+    CHECK(hash<md2>().update(u8"大风起兮云飞扬").result() == "0b83d20fe082ab8916c24e208f6e93e1"_hash_hex_128);
+    CHECK(hash<md2>().update(u8"噫嘘唏，").update(u8"危乎高哉，").update(u8"蜀道之难，难于").update(u8"上青天。").result() == "11c1a9d06524032ae189716cf68e0e36"_hash_hex_128);
 
     auto hash_test_1 = hash<md2>();
     CHECK(hash_test_1.result() == "8350e5a3e24c153df2275c9f80692773"_hash_hex_128);
@@ -187,7 +194,19 @@ TEST_CASE("md4")
     CHECK(hash<md4>().update("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.").result() == "993c38901c59d324a64ec2d4c9a1b091"_hash_hex_128);
     CHECK(hash<md4>().update("12345678901234567890123456789012345678901234567890123456789012345678901234567890").result() == "e33b4ddc9c38f2199c3e7b164fcc0536"_hash_hex_128);
 
+    CHECK(hash<md4>().update(u8"").result() == "31d6cfe0d16ae931b73c59d7e0c089c0"_hash_hex_128);
     CHECK(hash<md4>().update(u8"测试").result() == "1968504f74e56db119877599cf979e09"_hash_hex_128);
+    CHECK(hash<md4>().update(u8"大风起兮云飞扬").result() == "6cd9e49f914c26a3b0d20fa960332e9d"_hash_hex_128);
+    CHECK(hash<md4>().update(u8"古木阴中系短篷，杖藜扶我过桥东。沾衣欲湿杏花雨，吹面不寒杨柳风。").result() == "80ff31437f7827e6d08e1ced2b983e90"_hash_hex_128);
+    CHECK(hash<md4>().update(u8"怒发冲冠，")
+                     .update(u8"凭阑处，潇潇雨歇。")
+                     .update(u8"抬望眼，仰天长啸，壮怀激烈。")
+                     .update(u8"三十功名尘与土，八千里路云和月。莫等闲，白了少年头，空悲切。")
+                     .update(u8"靖康耻，犹未雪。臣子恨，何时灭。驾长车，踏破贺兰山缺。")
+                     .update(u8"壮志饥餐胡虏肉，笑谈渴饮匈奴血。")
+                     .update(u8"待从头、收拾旧山河，朝天阙。")
+                     .result() == "b25c2c43cef4aacba643d4b846434a90"_hash_hex_128);
+    CHECK(hash<md4>().update(u8"厌浥行露岂不夙夜谓行多露谁谓雀无角何以穿我屋谁谓女无家何以速我狱虽速我狱室家不足谁谓鼠无牙何以穿我墉谁谓女无家何以速我讼虽速我讼").update(u8"亦不女从").result() == "c525d99e60979c32b273fc7c197f5473"_hash_hex_128);
 
     auto hash_test_1 = hash<md4>();
     CHECK(hash_test_1.result() == "31d6cfe0d16ae931b73c59d7e0c089c0"_hash_hex_128);
@@ -219,7 +238,19 @@ TEST_CASE("md5")
     CHECK(hash<md5>().update("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.").result() == "8399a3d9447c3d2e7856d1d21d3e7ade"_hash_hex_128);
     CHECK(hash<md5>().update("12345678901234567890123456789012345678901234567890123456789012345678901234567890").result() == "57edf4a22be3c955ac49da2e2107b67a"_hash_hex_128);
 
+    CHECK(hash<md5>().update(u8"").result() == "d41d8cd98f00b204e9800998ecf8427e"_hash_hex_128);
     CHECK(hash<md5>().update(u8"测试").result() == "db06c78d1e24cf708a14ce81c9b617ec"_hash_hex_128);
+    CHECK(hash<md5>().update(u8"大风起兮云飞扬").result() == "2936290e77864208691f8b31e4b01d37"_hash_hex_128);
+    CHECK(hash<md5>().update(u8"古木阴中系短篷，杖藜扶我过桥东。沾衣欲湿杏花雨，吹面不寒杨柳风。").result() == "312af10afa4dbcfdfe3fa0dfdcba480a"_hash_hex_128);
+    CHECK(hash<md5>().update(u8"怒发冲冠，")
+                     .update(u8"凭阑处，潇潇雨歇。")
+                     .update(u8"抬望眼，仰天长啸，壮怀激烈。")
+                     .update(u8"三十功名尘与土，八千里路云和月。莫等闲，白了少年头，空悲切。")
+                     .update(u8"靖康耻，犹未雪。臣子恨，何时灭。驾长车，踏破贺兰山缺。")
+                     .update(u8"壮志饥餐胡虏肉，笑谈渴饮匈奴血。")
+                     .update(u8"待从头、收拾旧山河，朝天阙。")
+                     .result() == "0c4fd0dfb1dbb525d876465b72e94ea0"_hash_hex_128);
+    CHECK(hash<md5>().update(u8"厌浥行露岂不夙夜谓行多露谁谓雀无角何以穿我屋谁谓女无家何以速我狱虽速我狱室家不足谁谓鼠无牙何以穿我墉谁谓女无家何以速我讼虽速我讼").update(u8"亦不女从").result() == "25ba89fde56b91ca789d359a8c5d26c0"_hash_hex_128);
 
     auto hash_test_1 = hash<md5>();
     CHECK(hash_test_1.result() == "d41d8cd98f00b204e9800998ecf8427e"_hash_hex_128);
@@ -248,8 +279,10 @@ TEST_CASE("murmurhash1")
     CHECK(hash<murmurhash1>()("abcdefghij") == "912e647a"_hash_hex_32);
     CHECK(hash<murmurhash1>()("abcdefghijk") == "9b770060"_hash_hex_32);
 
+    CHECK(hash<murmurhash1>(61755476)(u8"") == "74d531ef"_hash_hex_32);
     CHECK(hash<murmurhash1>()(u8"测试") == "fcad7be1"_hash_hex_32);
     CHECK(hash<murmurhash1>(900812297)(u8"结果是多少") == "5bb709b8"_hash_hex_32);
+    CHECK(hash<murmurhash1>()(u8"诗家清景在新春，绿柳才黄半未匀。若待上林花似锦，出门俱是看花人。") == "405ebcf1"_hash_hex_32);
 }
 
 TEST_CASE("murmurhash2")
@@ -263,6 +296,7 @@ TEST_CASE("murmurhash2")
     CHECK(hash<murmurhash2>()("abcdefghij") == "4b09c914"_hash_hex_32);
     CHECK(hash<murmurhash2>()("abcdefghijk") == "4a7439a6"_hash_hex_32);
 
+    CHECK(hash<murmurhash2>(61755476)(u8"") == "46b0f07e"_hash_hex_32);
     CHECK(hash<murmurhash2>()(u8"测试") == "94fa7981"_hash_hex_32);
     CHECK(hash<murmurhash2>(900812297)(u8"结果是多少") == "79928a88"_hash_hex_32);
 }
@@ -282,6 +316,7 @@ TEST_CASE("murmurhash2_64a")
     CHECK(hash<murmurhash2_64a>()("abcdefghijklmn") == "9da2538e559887e9"_hash_hex_64);
     CHECK(hash<murmurhash2_64a>()("abcdefghijklmno") == "fdaac8a629dcd46a"_hash_hex_64);
 
+    CHECK(hash<murmurhash2_64a>(61755476)(u8"") == "42a0e7753c25b1a5"_hash_hex_64);
     CHECK(hash<murmurhash2_64a>()(u8"测试") == "21ac04a1894efdbf"_hash_hex_64);
     CHECK(hash<murmurhash2_64a>(900812297)(u8"结果是多少") == "deb3133cffb5d046"_hash_hex_64);
 }
@@ -301,6 +336,7 @@ TEST_CASE("murmurhash2_64b")
     CHECK(hash<murmurhash2_64b>()("abcdefghijklmn") == "6c7df090a8541296"_hash_hex_64);
     CHECK(hash<murmurhash2_64b>()("abcdefghijklmno") == "69e7f39723d7f52a"_hash_hex_64);
 
+    CHECK(hash<murmurhash2_64b>(61755476)(u8"") == "c9e1ca157a93477c"_hash_hex_64);
     CHECK(hash<murmurhash2_64b>()(u8"测试") == "de5f4e8a9f6d0566"_hash_hex_64);
     CHECK(hash<murmurhash2_64b>(900812297)(u8"结果是多少") == "e8316082e2cab316"_hash_hex_64);
 }
@@ -317,6 +353,8 @@ TEST_CASE("murmurhash2a")
     CHECK(hash<murmurhash2a>()("abcdefghij") == "3240af5e"_hash_hex_32);
     CHECK(hash<murmurhash2a>()("abcdefghijk") == "c233757e"_hash_hex_32);
 
+    CHECK(hash<murmurhash2a>(61755476)(u8"") == "e6d91157"_hash_hex_32);
+    CHECK(hash<murmurhash2a>()(u8"啊") == "a68bf110"_hash_hex_32);
     CHECK(hash<murmurhash2a>()(u8"测试") == "d0602e8a"_hash_hex_32);
     CHECK(hash<murmurhash2a>(900812297)(u8"结果是多少") == "f158f6fa"_hash_hex_32);
 
@@ -327,6 +365,20 @@ TEST_CASE("murmurhash2a")
     CHECK(hash_test.result() == "c6578446"_hash_hex_32);
     hash_test.update("jk");
     CHECK(hash_test.result() == "c233757e"_hash_hex_32);
+
+    auto hash_test2 = hash<murmurhash2a>();
+    hash_test2.update("q");
+    CHECK(hash_test2.result() == "fa6076ab"_hash_hex_32);
+    hash_test2.update("wert");
+    CHECK(hash_test2.result() == "307842df"_hash_hex_32);
+
+    auto hash_test3 = hash<murmurhash2a>();
+    hash_test3.update(u8"五");
+    CHECK(hash_test3.result() == "f63c4a15"_hash_hex_32);
+    hash_test3.update(u8"花马");
+    CHECK(hash_test3.result() == "7428edd5"_hash_hex_32);
+    hash_test3.update(u8"，");
+    CHECK(hash_test3.result() == "27219d82"_hash_hex_32);
 }
 
 TEST_CASE("murmurhash3_x86_32")
@@ -341,6 +393,7 @@ TEST_CASE("murmurhash3_x86_32")
     CHECK(hash<murmurhash3_x86_32>()("abcdefghij") == "88927791"_hash_hex_32);
     CHECK(hash<murmurhash3_x86_32>()("abcdefghijk") == "5f3b25df"_hash_hex_32);
 
+    CHECK(hash<murmurhash3_x86_32>(61755476)(u8"") == "c418f5e4"_hash_hex_32);
     CHECK(hash<murmurhash3_x86_32>()(u8"测试") == "fe75a838"_hash_hex_32);
     CHECK(hash<murmurhash3_x86_32>(900812297)(u8"结果是多少") == "c8fbcc27"_hash_hex_32);
 
@@ -351,6 +404,20 @@ TEST_CASE("murmurhash3_x86_32")
     CHECK(hash_test.result() == "421406f0"_hash_hex_32);
     hash_test.update("jk");
     CHECK(hash_test.result() == "5f3b25df"_hash_hex_32);
+
+    auto hash_test2 = hash<murmurhash3_x86_32>();
+    hash_test2.update("q");
+    CHECK(hash_test2.result() == "ff8209e8"_hash_hex_32);
+    hash_test2.update("wert");
+    CHECK(hash_test2.result() == "fda8a90a"_hash_hex_32);
+
+    auto hash_test3 = hash<murmurhash3_x86_32>();
+    hash_test3.update(u8"五");
+    CHECK(hash_test3.result() == "04522df9"_hash_hex_32);
+    hash_test3.update(u8"花马");
+    CHECK(hash_test3.result() == "7ae6eb40"_hash_hex_32);
+    hash_test3.update(u8"，");
+    CHECK(hash_test3.result() == "30699f40"_hash_hex_32);
 }
 
 TEST_CASE("murmurhash3_x86_128")
@@ -368,8 +435,11 @@ TEST_CASE("murmurhash3_x86_128")
     CHECK(hash<murmurhash3_x86_128>()("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.") == "1b7258f3ab3daf9521188b0d76865867"_hash_hex_128);
     CHECK(hash<murmurhash3_x86_128>()("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,") == "3ed33b86c817f76ad9c666a41c50629d"_hash_hex_128);
 
+    CHECK(hash<murmurhash3_x86_128>(61755476)(u8"") == "2be55f702be55f702be55f7039cb536c"_hash_hex_128);
     CHECK(hash<murmurhash3_x86_128>()(u8"测试") == "3c4edb603c4edb605b39801c441c0b05"_hash_hex_128);
     CHECK(hash<murmurhash3_x86_128>(900812297)(u8"结果是多少") == "309f18204f67004ab06b6fe1a027d1c8"_hash_hex_128);
+    CHECK(hash<murmurhash3_x86_128>()(u8"五花马，千金裘，呼儿将出换美酒，与尔同销万古愁！") == "f9a5e8cc9062032fc13becd2684adf55"_hash_hex_128);
+    CHECK(hash<murmurhash3_x86_128>().update(u8"噫嘘唏，").update(u8"危乎高哉，").update(u8"蜀道之难，难于").update(u8"上青天。").result() == "af7b63562709ffa431c276c6cc04229"_hash_hex_128);
 
     auto hash_test = hash<murmurhash3_x86_128>();
     hash_test.update("a");
@@ -399,8 +469,11 @@ TEST_CASE("murmurhash3_x64_128")
     CHECK(hash<murmurhash3_x64_128>()("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.") == "2f009dca7f55ce98295c72d83c1da6ce"_hash_hex_128);
     CHECK(hash<murmurhash3_x64_128>()("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,") == "067a0c4f5416c70ff1f29eec7d73c558"_hash_hex_128);
 
+    CHECK(hash<murmurhash3_x64_128>(61755476)(u8"") == "e493b454e1851d7feb53992bb4f02004"_hash_hex_128);
     CHECK(hash<murmurhash3_x64_128>()(u8"测试") == "2cb4def0e0e0bd5725764ef0e506f500"_hash_hex_128);
     CHECK(hash<murmurhash3_x64_128>(900812297)(u8"结果是多少") == "304a619fe1e1a8dd2e8acfeca83091d3"_hash_hex_128);
+    CHECK(hash<murmurhash3_x64_128>()(u8"五花马，千金裘，呼儿将出换美酒，与尔同销万古愁！") == "81afd3d5f7a39adcbaf2424e86ffa1a8"_hash_hex_128);
+    CHECK(hash<murmurhash3_x64_128>().update(u8"噫嘘唏，").update(u8"危乎高哉，").update(u8"蜀道之难，难于").update(u8"上青天。").result() == "b61403fe41e0dd8672ccc99af05248fe"_hash_hex_128);
 
     auto hash_test = hash<murmurhash3_x64_128>();
     hash_test.update("a");
