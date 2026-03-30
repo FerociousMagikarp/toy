@@ -392,14 +392,166 @@ public:
         {
             parent->right = node;
             if (parent == m_header.right)
-            {
                 m_header.right = node;
-            }
         }
 
         rebalence(parent);
 
         return node;
+    }
+
+    _base_ptr erase_node(_base_ptr node) noexcept
+    {
+        _base_ptr rebalance_node;
+        _base_ptr replace_node = nullptr;
+        auto inc_node = _avl_node_increment(node);
+        if (node->left == nullptr && node->right == nullptr)
+        {
+            if (node->parent == std::addressof(m_header))
+            {
+                m_header.parent = nullptr;
+                m_header.left = m_header.right = std::addressof(m_header);
+            }
+            else
+            {
+                if (node == m_header.left)
+                    m_header.left = inc_node;
+                else if (node == m_header.right)
+                    m_header.right = _avl_node_decrement(node);
+                if (node == node->parent->left)
+                    node->parent->left = nullptr;
+                else // if (node == node->parent->right)
+                    node->parent->right = nullptr;
+            }
+            rebalance_node = node->parent;
+        }
+        else
+        {
+            auto [left_height, right_height] = _get_child_node_height(node);
+            if (left_height >= right_height)
+            {
+                auto dec_node = _avl_node_decrement(node);
+                if (dec_node->parent != node)
+                {
+                    dec_node->parent->right = dec_node->left;
+                    if (dec_node->left)
+                        dec_node->left->parent = dec_node->parent;
+                    dec_node->left = node->left;
+                    node->left->parent = dec_node;
+                    rebalance_node = dec_node->parent;
+                }
+                else
+                {
+                    rebalance_node = node->parent;
+                }
+
+                if (node->parent == std::addressof(m_header))
+                {
+                    node->parent->parent = dec_node;
+                }
+                else if (node == node->parent->left)
+                {
+                    node->parent->left = dec_node;
+                }
+                else // if (node == node->parent->right)
+                {
+                    node->parent->right = dec_node;
+                    if (node == m_header.right)
+                        m_header.right = dec_node;
+                }
+                dec_node->right = node->right;
+                if (node->right)
+                    node->right->parent = dec_node;
+                dec_node->parent = node->parent;
+                replace_node = dec_node;
+            }
+            else // if (left_height < right_height)
+            {
+                if (inc_node->parent != node)
+                {
+                    inc_node->parent->left = inc_node->right;
+                    if (inc_node->right)
+                        inc_node->right->parent = inc_node->parent;
+                    inc_node->right = node->right;
+                    node->right->parent = inc_node;
+                    rebalance_node = inc_node->parent;
+                }
+                else
+                {
+                    rebalance_node = node->parent;
+                }
+
+                if (node->parent == std::addressof(m_header))
+                {
+                    node->parent->parent = inc_node;
+                }
+                else if (node == node->parent->right)
+                {
+                    node->parent->right = inc_node;
+                }
+                else // if (node == node->parent->left)
+                {
+                    node->parent->left = inc_node;
+                    if (node == m_header.left)
+                        m_header.left = inc_node;
+                }
+                inc_node->left = node->left;
+                if (node->left)
+                    node->left->parent = inc_node;
+                inc_node->parent = node->parent;
+                replace_node = inc_node;
+            }
+            node->left = node->right = nullptr;
+        }
+        node->parent = nullptr;
+        node->height = 0;
+
+        m_header.height--;
+        if (replace_node)
+            replace_node->height = _get_node_height(replace_node);
+        rebalence(rebalance_node);
+
+        return inc_node;
+    }
+
+    _base_ptr lower_bound(const key_type& key)
+        noexcept(noexcept(m_compare(key, key)) && noexcept(_node_traits::get_key(std::declval<_base_ptr>())))
+    {
+        _base_ptr x = m_header.parent;
+        _base_ptr y = std::addressof(m_header);
+        while (x != nullptr)
+        {
+            if (!m_compare(_node_traits::get_key(x), key))
+            {
+                y = x;
+                x = x->left;
+            }
+            else
+            {
+                x = x->right;
+            }
+        }
+        return y;
+    }
+
+    _base_ptr upper_bound(const key_type& key)
+        noexcept(noexcept(m_compare(key, key)) && noexcept(_node_traits::get_key(std::declval<_base_ptr>())))
+    {
+        _base_ptr x = m_header.parent;
+        _base_ptr y = std::addressof(m_header);
+        while (x != nullptr)
+        {
+            if (m_compare(key, _node_traits::get_key(x)))
+            {
+                y = x;
+                x = x->left;
+            }
+            else
+            {
+                x = x->right;
+            }
+        }
+        return y;
     }
 
     _base_ptr       begin() noexcept       { return m_header.left; }
@@ -454,20 +606,8 @@ private:
                     }
                     _avl_tree_rotate_right(node, m_header.parent);
                 }
-
-                do
-                {
-                    auto height = _get_node_height(node);
-                    if (node->height == height)
-                        break;
-                    node->height = height;
-                    node = node->parent;
-                } while (node != std::addressof(m_header));
-                break;
             }
-            auto height = std::max(left_height, right_height) + 1;
-            if (node->height == height)
-                break;
+            auto height = _get_node_height(node);
             node->height = height;
             node = node->parent;
         }
