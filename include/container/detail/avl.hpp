@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <iterator>
+#include <utility>
 
 namespace toy::detail
 {
@@ -309,6 +310,12 @@ typename _Traits::base_ptr _get_avl_iterator_ptr(avl_tree_const_iterator<_Traits
     return const_cast<typename _Traits::base_ptr>(iter.m_node);
 }
 
+template <typename Compare, typename Key, typename K>
+concept _comparable_key = requires(const Compare& compare, const Key& origin_key, const K& key) {
+    { compare(origin_key, key) } -> std::convertible_to<bool>;
+    { compare(key, origin_key) } -> std::convertible_to<bool>;
+};
+
 template <typename Key, typename Val, typename NodeTraits, typename Compare>
 class avl_tree
 {
@@ -335,11 +342,17 @@ public:
     using _base_ptr       = avl_node_base*;
     using _const_base_ptr = const avl_node_base*;
 
-    avl_header_node m_header;
-    [[no_unique_address]] Compare m_compare;
+    template <typename K>
+    constexpr static bool is_bound_noexcept_v = noexcept(_node_traits::get_key(std::declval<_base_ptr>())) &&
+                                                noexcept(std::declval<key_compare>()(std::declval<key_type>(), std::declval<K>())) &&
+                                                noexcept(std::declval<key_compare>()(std::declval<K>(), std::declval<key_type>()));
 
-    std::pair<_base_ptr, bool> get_insert_unique_pos(const key_type& key)
-        noexcept(noexcept(_node_traits::get_key(std::declval<_base_ptr>())))
+    avl_header_node m_header;
+    [[no_unique_address]] key_compare m_compare;
+
+    template <typename K>
+        requires _comparable_key<key_compare, key_type, K>
+    std::pair<_base_ptr, bool> get_insert_unique_pos(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         _base_ptr pos = m_header.parent;
         _base_ptr parent = std::addressof(m_header);
@@ -400,8 +413,9 @@ public:
         return node;
     }
 
-    _base_ptr erase_node(_base_ptr node) noexcept
+    _base_ptr erase_node(_const_base_ptr _node) noexcept
     {
+        _base_ptr node = const_cast<_base_ptr>(_node);
         _base_ptr rebalance_node;
         _base_ptr replace_node = nullptr;
         auto inc_node = _avl_node_increment(node);
@@ -514,11 +528,12 @@ public:
         return inc_node;
     }
 
-    _base_ptr lower_bound(const key_type& key)
-        noexcept(noexcept(m_compare(key, key)) && noexcept(_node_traits::get_key(std::declval<_base_ptr>())))
+    template <typename K>
+        requires _comparable_key<key_compare, key_type, K>
+    _const_base_ptr lower_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
-        _base_ptr x = m_header.parent;
-        _base_ptr y = std::addressof(m_header);
+        _const_base_ptr x = m_header.parent;
+        _const_base_ptr y = end();
         while (x != nullptr)
         {
             if (!m_compare(_node_traits::get_key(x), key))
@@ -534,11 +549,19 @@ public:
         return y;
     }
 
-    _base_ptr upper_bound(const key_type& key)
-        noexcept(noexcept(m_compare(key, key)) && noexcept(_node_traits::get_key(std::declval<_base_ptr>())))
+    template <typename K>
+        requires _comparable_key<key_compare, key_type, K>
+    _base_ptr lower_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
-        _base_ptr x = m_header.parent;
-        _base_ptr y = std::addressof(m_header);
+        return const_cast<_base_ptr>(std::as_const(*this).lower_bound(key));
+    }
+
+    template <typename K>
+        requires _comparable_key<key_compare, key_type, K>
+    _const_base_ptr upper_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
+    {
+        _const_base_ptr x = m_header.parent;
+        _const_base_ptr y = end();
         while (x != nullptr)
         {
             if (m_compare(key, _node_traits::get_key(x)))
@@ -552,6 +575,30 @@ public:
             }
         }
         return y;
+    }
+
+    template <typename K>
+        requires _comparable_key<key_compare, key_type, K>
+    _base_ptr upper_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
+    {
+        return const_cast<_base_ptr>(std::as_const(*this).upper_bound(key));
+    }
+
+    template <typename K>
+        requires _comparable_key<key_compare, key_type, K>
+    _const_base_ptr find(const K& key) const noexcept(is_bound_noexcept_v<K>)
+    {
+        auto res = lower_bound(key);
+        if (res != end() && !m_compare(key, _node_traits::get_key(res)))
+            return res;
+        return end();
+    }
+
+    template <typename K>
+        requires _comparable_key<key_compare, key_type, K>
+    _base_ptr find(const K& key) noexcept(is_bound_noexcept_v<K>)
+    {
+        return const_cast<_base_ptr>(std::as_const(*this).find(key));
     }
 
     _base_ptr       begin() noexcept       { return m_header.left; }

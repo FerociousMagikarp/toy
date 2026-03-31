@@ -176,6 +176,14 @@ TEST_CASE("avl_tree")
     CHECK(*_test_avl_iterator(upper_bound1) == 9);
     auto upper_bound2 = tree.upper_bound(0);
     CHECK(*_test_avl_iterator(upper_bound2) == 1);
+    auto find1 = tree.find(0);
+    CHECK(*_test_avl_iterator(find1) == 0);
+    auto find2 = tree.find(8);
+    CHECK(*_test_avl_iterator(find2) == 8);
+    auto find3 = tree.find(100);
+    CHECK(find3 == tree.end());
+    auto find4 = tree.find(-100);
+    CHECK(find4 == tree.end());
 
     erase_avl_node_lowwer_bound(tree, 8);
     CHECK(check_avl_tree_valid(tree));
