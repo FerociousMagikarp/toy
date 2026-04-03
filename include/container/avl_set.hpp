@@ -42,6 +42,9 @@ public:
     using reverse_iterator       = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
+    avl_set() = default;
+    ~avl_set() { clear(); }
+
     iterator               begin()   noexcept       { return iterator(m_avl_tree.begin()); }
     const_iterator         begin()   const noexcept { return const_iterator(m_avl_tree.begin()); }
     const_iterator         cbegin()  const noexcept { return const_iterator(m_avl_tree.begin()); }
@@ -58,6 +61,14 @@ public:
     bool      empty()    const noexcept { return m_avl_tree.empty(); }
     size_type size()     const noexcept { return m_avl_tree.size(); }
     size_type max_size() const noexcept { return std::allocator_traits<allocator_type>::max_size(); }
+
+    void clear() noexcept
+    {
+        for (auto pos = cbegin(); pos != cend();)
+        {
+            pos = erase(pos);
+        }
+    }
 
     std::pair<iterator, bool> insert(const value_type& value)
     {
