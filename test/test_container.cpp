@@ -16,7 +16,8 @@ TEST_CASE("avl_set")
     }
     for (int i = 0; i < 10; i++)
     {
-        auto [_, success] = test_set.insert(i);
+        auto [pos, success] = test_set.insert(i);
+        CHECK(*pos == i);
         CHECK(success == false);
     }
     auto find_iter1 = test_set.find(5);

@@ -61,10 +61,10 @@ public:
 
     std::pair<iterator, bool> insert(const value_type& value)
     {
-        auto [parent_pos, insert_left] = m_avl_tree.get_insert_unique_pos(_avl_node_traits::get_key(value));
-        if (parent_pos == nullptr)
-            return std::make_pair(end(), false);
-        auto res = m_avl_tree.insert_node(parent_pos, insert_left, m_node_alloc.create_node(value));
+        auto [parent_pos, insert_res] = m_avl_tree.get_insert_unique_pos(_avl_node_traits::get_key(value));
+        if (insert_res == detail::_insert_unique_pos_res_second::none)
+            return std::make_pair(iterator(parent_pos), false);
+        auto res = m_avl_tree.insert_node(parent_pos, insert_res == detail::_insert_unique_pos_res_second::left, m_node_alloc.create_node(value));
         return std::make_pair(iterator{res}, true);
     }
 

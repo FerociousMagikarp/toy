@@ -324,6 +324,11 @@ concept _comparable_param = requires(const Compare& compare, const Key& origin_k
     { compare(key, origin_key) } -> std::convertible_to<bool>;
 };
 
+enum class _insert_unique_pos_res_second
+{
+    none, left, right,
+};
+
 template <typename Key, typename Val, typename NodeTraits, typename Compare>
 class avl_tree
 {
@@ -349,33 +354,36 @@ public:
 
     template <typename K>
         requires _comparable_param<key_compare, key_type, K>
-    std::pair<_base_ptr, bool> get_insert_unique_pos(const K& key) noexcept(is_bound_noexcept_v<K>)
+    std::pair<_base_ptr, _insert_unique_pos_res_second> get_insert_unique_pos(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
+        using enum _insert_unique_pos_res_second;
+
         _base_ptr pos = m_header.parent;
         _base_ptr parent = std::addressof(m_header);
-        bool insert_left = true;
+        _insert_unique_pos_res_second insert_res = left;
 
         while (pos != nullptr)
         {
             parent = pos;
-            insert_left = m_compare(key, _node_traits::get_key(pos));
-            pos = insert_left ? pos->left : pos->right;
+            insert_res = m_compare(key, _node_traits::get_key(pos)) ? left : right;
+            pos = insert_res == left ? pos->left : pos->right;
         }
 
-        if (insert_left)
+        if (insert_res == left)
         {
             if (parent != m_header.left)
             {
-                if (!m_compare(_node_traits::get_key(_avl_node_decrement(parent)), key))
-                    return std::make_pair(nullptr, false);
+                auto dec_node = _avl_node_decrement(parent);
+                if (!m_compare(_node_traits::get_key(dec_node), key))
+                    return std::make_pair(dec_node, none);
             }
         }
         else if (!m_compare(_node_traits::get_key(parent), key))
         {
-            return std::make_pair(nullptr, false);
+            return std::make_pair(parent, none);
         }
 
-        return std::make_pair(parent, insert_left);
+        return std::make_pair(parent, insert_res);
     }
 
     _base_ptr insert_node(_base_ptr parent, bool insert_left, _base_ptr node) noexcept

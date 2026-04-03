@@ -84,10 +84,10 @@ static bool check_avl_tree_valid(const _test_avl_tree_t& tree)
 template <typename Arg>
 std::pair<_test_avl_iterator, bool> insert_avl_node(_test_avl_tree_t& tree, Arg&& val)
 {
-    auto [parent_pos, insert_left] = tree.get_insert_unique_pos(_test_avl_node_traits::get_key(val));
-    if (parent_pos == nullptr)
-        return std::make_pair(_test_avl_iterator{tree.end()}, false);
-    auto res = tree.insert_node(parent_pos, insert_left, _avl_node_alloc.create_node(std::forward<Arg>(val)));
+    auto [parent_pos, insert_res] = tree.get_insert_unique_pos(_test_avl_node_traits::get_key(val));
+    if (insert_res == detail::_insert_unique_pos_res_second::none)
+        return std::make_pair(_test_avl_iterator{parent_pos}, false);
+    auto res = tree.insert_node(parent_pos, insert_res == detail::_insert_unique_pos_res_second::left, _avl_node_alloc.create_node(std::forward<Arg>(val)));
     return std::make_pair(_test_avl_iterator{res}, true);
 }
 
