@@ -87,9 +87,21 @@ public:
     }
 
     template <typename K> requires comparable_param<key_compare, key_type, K>
+    bool count(const K& x) const noexcept(noexcept(m_avl_tree.contains(x))) { return m_avl_tree.contains(x) ? 1 : 0; }
+    template <typename K> requires comparable_param<key_compare, key_type, K>
     iterator find(const K& x) noexcept(noexcept(m_avl_tree.find(x))) { return iterator(m_avl_tree.find(x)); }
     template <typename K> requires comparable_param<key_compare, key_type, K>
     const_iterator find(const K& x) const noexcept(noexcept(m_avl_tree.find(x))) { return const_iterator(m_avl_tree.find(x)); }
+    template <typename K> requires comparable_param<key_compare, key_type, K>
+    bool contains(const K& x) const noexcept(noexcept(m_avl_tree.contains(x))) { return m_avl_tree.contains(x); }
+    template <typename K> requires comparable_param<key_compare, key_type, K>
+    iterator lower_bound(const K& x) noexcept(noexcept(m_avl_tree.lower_bound(x))) { return iterator(m_avl_tree.lower_bound(x)); }
+    template <typename K> requires comparable_param<key_compare, key_type, K>
+    const_iterator lower_bound(const K& x) const noexcept(noexcept(m_avl_tree.lower_bound(x))) { return const_iterator(m_avl_tree.lower_bound(x)); }
+    template <typename K> requires comparable_param<key_compare, key_type, K>
+    iterator upper_bound(const K& x) noexcept(noexcept(m_avl_tree.upper_bound(x))) { return iterator(m_avl_tree.upper_bound(x)); }
+    template <typename K> requires comparable_param<key_compare, key_type, K>
+    const_iterator upper_bound(const K& x) const noexcept(noexcept(m_avl_tree.upper_bound(x))) { return const_iterator(m_avl_tree.upper_bound(x)); }
 };
 
 } // namespace toy

@@ -62,4 +62,17 @@ TEST_CASE("avl_set")
     {
         CHECK(*iter == remain_value[std::distance(test_set.cbegin(), iter)]);
     }
+    CHECK(test_set.contains(6));
+    CHECK(!test_set.contains(3));
+    CHECK(*test_set.lower_bound(7) == 8);
+    CHECK(*test_set.upper_bound(7) == 8);
+    CHECK(test_set.count(6) == 1);
+    CHECK(test_set.count(7) == 0);
+    [](const avl_set<int>& s) -> void
+    {
+        CHECK(*s.lower_bound(5) == 5);
+        CHECK(*s.upper_bound(5) == 6);
+        CHECK(*s.lower_bound(9) == 9);
+        CHECK(s.upper_bound(9) == s.cend());
+    }(test_set);
 }

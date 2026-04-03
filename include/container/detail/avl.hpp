@@ -606,6 +606,14 @@ public:
         return const_cast<_base_ptr>(std::as_const(*this).find(key));
     }
 
+    template <typename K>
+        requires _comparable_param<key_compare, key_type, K>
+    bool contains(const K& key) const noexcept(is_bound_noexcept_v<K>)
+    {
+        auto res = lower_bound(key);
+        return (res != end() && !m_compare(key, _node_traits::get_key(res)));
+    }
+
     _base_ptr       begin() noexcept       { return m_header.left; }
     _const_base_ptr begin() const noexcept { return m_header.left; }
     _base_ptr       end()   noexcept       { return std::addressof(m_header); }

@@ -184,6 +184,9 @@ TEST_CASE("avl_tree")
     CHECK(find3 == tree.end());
     auto find4 = tree.find(-100);
     CHECK(find4 == tree.end());
+    CHECK(tree.contains(8));
+    CHECK(!tree.contains(100));
+    CHECK(!tree.contains(-100));
 
     erase_avl_node_lowwer_bound(tree, 8);
     CHECK(check_avl_tree_valid(tree));
