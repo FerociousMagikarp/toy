@@ -5,10 +5,10 @@
 namespace toy::detail
 {
 
-template <typename Node, typename KeyOfVal, std::size_t N>
+template <typename Node, auto KeyOfVal, std::size_t N>
 struct node_traits {};
 
-template <typename Val, typename... Base, typename KeyOfVal, std::size_t N>
+template <typename Val, typename... Base, auto KeyOfVal, std::size_t N>
     requires (N < sizeof...(Base))
 struct node_traits<container_node<Val, Base...>, KeyOfVal, N>
 {
@@ -54,14 +54,14 @@ struct node_traits<container_node<Val, Base...>, KeyOfVal, N>
     static const Val* value_ptr(const_base_ptr base) noexcept { return cast_to_node(base)->value_ptr(); }
 
     static const auto& get_key(const_base_ptr base)
-        noexcept(noexcept(std::declval<KeyOfVal>()(std::declval<value_type>())))
-    { return KeyOfVal{}(*value_ptr(base)); }
+        noexcept(noexcept(KeyOfVal(std::declval<value_type>())))
+    { return KeyOfVal(*value_ptr(base)); }
     static const auto& get_key(value_type&& val)
-        noexcept(noexcept(std::declval<KeyOfVal>()(std::declval<value_type>())))
-    { return KeyOfVal{}(std::forward<value_type>(val)); }
+        noexcept(noexcept(KeyOfVal(std::declval<value_type>())))
+    { return KeyOfVal(std::forward<value_type>(val)); }
     static const auto& get_key(const value_type& val)
-        noexcept(noexcept(std::declval<KeyOfVal>()(std::declval<value_type>())))
-    { return KeyOfVal{}(val); }
+        noexcept(noexcept(KeyOfVal(std::declval<value_type>())))
+    { return KeyOfVal(val); }
 };
 
 } // namespace toy::detail

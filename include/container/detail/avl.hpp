@@ -276,6 +276,10 @@ public:
 
     avl_tree_iterator() noexcept : _base() {}
     explicit avl_tree_iterator(_base_ptr node) : _base(node) {}
+    avl_tree_iterator(const avl_tree_iterator&) = default;
+    avl_tree_iterator(avl_tree_iterator&&) = default;
+    avl_tree_iterator& operator=(const avl_tree_iterator&) = default;
+    avl_tree_iterator& operator=(avl_tree_iterator&&) = default;
 };
 
 template <typename NodeTraits>
@@ -283,7 +287,7 @@ class avl_tree_const_iterator final : public avl_tree_iterator_base<NodeTraits, 
 {
 private:
     template <typename _Traits>
-    friend typename _Traits::base_ptr _get_avl_iterator_ptr(avl_tree_const_iterator<_Traits>) noexcept;
+    friend typename _Traits::const_base_ptr _get_avl_iterator_ptr(const avl_tree_const_iterator<_Traits>&) noexcept;
 
     using _self     = avl_tree_const_iterator<NodeTraits>;
     using _base     = avl_tree_iterator_base<NodeTraits, _self>;
@@ -302,16 +306,20 @@ public:
     avl_tree_const_iterator() noexcept : _base() {}
     explicit avl_tree_const_iterator(_base_ptr node) noexcept : _base(node) {}
     avl_tree_const_iterator(const avl_tree_iterator<NodeTraits>& it) noexcept : _base(it.m_node) {}
+    avl_tree_const_iterator(const avl_tree_const_iterator&) = default;
+    avl_tree_const_iterator(avl_tree_const_iterator&&) = default;
+    avl_tree_const_iterator& operator=(const avl_tree_const_iterator&) = default;
+    avl_tree_const_iterator& operator=(avl_tree_const_iterator&&) = default;
 };
 
 template <typename _Traits>
-typename _Traits::base_ptr _get_avl_iterator_ptr(avl_tree_const_iterator<_Traits> iter) noexcept
+typename _Traits::const_base_ptr _get_avl_iterator_ptr(const avl_tree_const_iterator<_Traits>& iter) noexcept
 {
-    return const_cast<typename _Traits::base_ptr>(iter.m_node);
+    return iter.m_node;
 }
 
 template <typename Compare, typename Key, typename K>
-concept _comparable_key = requires(const Compare& compare, const Key& origin_key, const K& key) {
+concept _comparable_param = requires(const Compare& compare, const Key& origin_key, const K& key) {
     { compare(origin_key, key) } -> std::convertible_to<bool>;
     { compare(key, origin_key) } -> std::convertible_to<bool>;
 };
@@ -322,23 +330,12 @@ class avl_tree
 public:
     static_assert(std::is_invocable_v<const Compare&, const Key&, const Key&>, "comparison object must be invocable as const");
 
-    using key_type        = Key;
-    using value_type      = Val;
-    using size_type       = std::size_t;
-    using difference_type = std::ptrdiff_t;
-    using key_compare     = Compare;
-    using reference       = value_type&;
-    using const_reference = const value_type&;
-    using pointer         = value_type*;
-    using const_pointer   = const value_type*;
+    using key_type    = Key;
+    using value_type  = Val;
+    using size_type   = std::size_t;
+    using key_compare = Compare;
 
-    using _node_traits = NodeTraits;
-
-    // using iterator               = avl_tree_iterator<_node_traits>;
-    // using const_iterator         = avl_tree_const_iterator<_node_traits>;
-    // using reverse_iterator       = std::reverse_iterator<iterator>;
-    // using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-
+    using _node_traits    = NodeTraits;
     using _base_ptr       = avl_node_base*;
     using _const_base_ptr = const avl_node_base*;
 
@@ -351,7 +348,7 @@ public:
     [[no_unique_address]] key_compare m_compare;
 
     template <typename K>
-        requires _comparable_key<key_compare, key_type, K>
+        requires _comparable_param<key_compare, key_type, K>
     std::pair<_base_ptr, bool> get_insert_unique_pos(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         _base_ptr pos = m_header.parent;
@@ -529,7 +526,7 @@ public:
     }
 
     template <typename K>
-        requires _comparable_key<key_compare, key_type, K>
+        requires _comparable_param<key_compare, key_type, K>
     _const_base_ptr lower_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
         _const_base_ptr x = m_header.parent;
@@ -550,14 +547,14 @@ public:
     }
 
     template <typename K>
-        requires _comparable_key<key_compare, key_type, K>
+        requires _comparable_param<key_compare, key_type, K>
     _base_ptr lower_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         return const_cast<_base_ptr>(std::as_const(*this).lower_bound(key));
     }
 
     template <typename K>
-        requires _comparable_key<key_compare, key_type, K>
+        requires _comparable_param<key_compare, key_type, K>
     _const_base_ptr upper_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
         _const_base_ptr x = m_header.parent;
@@ -578,14 +575,14 @@ public:
     }
 
     template <typename K>
-        requires _comparable_key<key_compare, key_type, K>
+        requires _comparable_param<key_compare, key_type, K>
     _base_ptr upper_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         return const_cast<_base_ptr>(std::as_const(*this).upper_bound(key));
     }
 
     template <typename K>
-        requires _comparable_key<key_compare, key_type, K>
+        requires _comparable_param<key_compare, key_type, K>
     _const_base_ptr find(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
         auto res = lower_bound(key);
@@ -595,7 +592,7 @@ public:
     }
 
     template <typename K>
-        requires _comparable_key<key_compare, key_type, K>
+        requires _comparable_param<key_compare, key_type, K>
     _base_ptr find(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         return const_cast<_base_ptr>(std::as_const(*this).find(key));
@@ -605,18 +602,6 @@ public:
     _const_base_ptr begin() const noexcept { return m_header.left; }
     _base_ptr       end()   noexcept       { return std::addressof(m_header); }
     _const_base_ptr end()   const noexcept { return std::addressof(m_header); }
-    // iterator               begin()   noexcept       { return iterator(m_header.left); }
-    // const_iterator         begin()   const noexcept { return const_iterator(m_header.left); }
-    // const_iterator         cbegin()  const noexcept { return const_iterator(m_header.left); }
-    // iterator               end()     noexcept       { return iterator(std::addressof(m_header)); }
-    // const_iterator         end()     const noexcept { return const_iterator(std::addressof(m_header)); }
-    // const_iterator         cend()    const noexcept { return const_iterator(std::addressof(m_header)); }
-    // reverse_iterator       rbegin()  noexcept       { return reverse_iterator(end()); }
-    // const_reverse_iterator rbegin()  const noexcept { return const_reverse_iterator(end()); }
-    // const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(end()); }
-    // reverse_iterator       rend()    noexcept       { return reverse_iterator(begin()); }
-    // const_reverse_iterator rend()    const noexcept { return const_reverse_iterator(begin()); }
-    // const_reverse_iterator crend()   const noexcept { return const_reverse_iterator(begin()); }
 
     bool empty() const noexcept { return m_header.height == 0; }
     size_type size() const noexcept { return m_header.height; }
