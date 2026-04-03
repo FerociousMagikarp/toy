@@ -26,8 +26,8 @@ public:
     using allocator_type  = Allocator;
     using reference       = value_type&;
     using const_reference = const value_type&;
-    using pointer         = std::allocator_traits<Allocator>::pointer;
-    using const_pointer   = std::allocator_traits<Allocator>::const_pointer;
+    using pointer         = typename std::allocator_traits<Allocator>::pointer;
+    using const_pointer   = typename std::allocator_traits<Allocator>::const_pointer;
 
 private:
     using _avl_node_type   = detail::container_node<Key, detail::avl_node_base>;
