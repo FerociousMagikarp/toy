@@ -234,14 +234,44 @@ TEST_CASE("avl_tree")
     rand.seed(42);
     std::uniform_int_distribution<int> distrib(0, 1000);
 
+    std::size_t test_size = tree.size();
+    int front_val = *_test_avl_iterator(tree.begin());
+    CHECK(front_val == 2);
+    int back_val = *--_test_avl_iterator(tree.end());
+    CHECK(back_val == 18);
+
     for (int i = 0; i < 500; i++)
     {
-        insert_avl_node(tree, distrib(rand));
+        auto val = distrib(rand);
+        if (!tree.contains(val))
+            test_size++;
+        if (val < front_val)
+            front_val = val;
+        if (val > back_val)
+            back_val = val;
+        insert_avl_node(tree, val);
         CHECK(check_avl_tree_valid(tree));
+        CHECK(tree.size() == test_size);
+        CHECK(*_test_avl_iterator(tree.begin()) == front_val);
+        CHECK(*--_test_avl_iterator(tree.end()) == back_val);
     }
     for (int i = 0; i < 300; i++)
     {
-        erase_avl_node_lowwer_bound(tree, distrib(rand));
+        auto val = distrib(rand);
+        auto pos = tree.lower_bound(val);
+        if (pos != tree.end())
+        {
+            int pos_val = *_test_avl_iterator(pos);
+            if (pos_val < front_val)
+                front_val = pos_val;
+            if (pos_val > back_val)
+                back_val = pos_val;
+            test_size--;
+        }
+        erase_avl_node_lowwer_bound(tree, val);
         CHECK(check_avl_tree_valid(tree));
+        CHECK(tree.size() == test_size);
+        CHECK(*_test_avl_iterator(tree.begin()) == front_val);
+        CHECK(*--_test_avl_iterator(tree.end()) == back_val);
     }
 }

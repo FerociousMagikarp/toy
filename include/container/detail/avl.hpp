@@ -25,16 +25,17 @@ struct avl_header_node final : public avl_node_base
     // parent : root node
     // height : size
 
-    avl_header_node() noexcept { reset(); }
-    avl_header_node(avl_header_node&& x) noexcept
+    constexpr avl_header_node() noexcept { reset(); }
+    constexpr avl_header_node(avl_header_node&& x) noexcept
     {
         if (x.parent != nullptr)
             move_data(x);
         else
             reset();
     }
+    constexpr ~avl_header_node() = default;
 
-    void move_data(avl_header_node& other) noexcept
+    constexpr void move_data(avl_header_node& other) noexcept
     {
         parent = other.parent;
         left   = other.left;
@@ -44,7 +45,7 @@ struct avl_header_node final : public avl_node_base
         other.reset();
     }
 
-    void reset() noexcept
+    constexpr void reset() noexcept
     {
         parent = nullptr;
         left   = this;
@@ -53,14 +54,14 @@ struct avl_header_node final : public avl_node_base
     }
 };
 
-inline std::size_t _get_node_height(const avl_node_base* node) noexcept
+constexpr std::size_t _get_node_height(const avl_node_base* node) noexcept
 {
     std::size_t left_height = node->left == nullptr ? 0 : node->left->height;
     std::size_t right_height = node->right == nullptr ? 0 : node->right->height;
     return std::max(left_height, right_height) + 1;
 }
 
-inline std::pair<std::size_t, std::size_t> _get_child_node_height(const avl_node_base* node) noexcept
+constexpr std::pair<std::size_t, std::size_t> _get_child_node_height(const avl_node_base* node) noexcept
 {
     std::size_t left_height = node->left == nullptr ? 0 : node->left->height;
     std::size_t right_height = node->right == nullptr ? 0 : node->right->height;
@@ -72,7 +73,7 @@ concept avl_node_base_pointer = std::is_pointer_v<T>
     && std::is_same_v<std::remove_const_t<std::remove_pointer_t<T>>, avl_node_base>;
 
 template <avl_node_base_pointer NodePtr>
-NodePtr _find_avl_minimum(NodePtr x) noexcept
+constexpr NodePtr _find_avl_minimum(NodePtr x) noexcept
 {
     while (x->left != nullptr)
         x = x->left;
@@ -80,7 +81,7 @@ NodePtr _find_avl_minimum(NodePtr x) noexcept
 }
 
 template <avl_node_base_pointer NodePtr>
-NodePtr _find_avl_maximum(NodePtr x) noexcept
+constexpr NodePtr _find_avl_maximum(NodePtr x) noexcept
 {
     while (x->right != nullptr)
         x = x->right;
@@ -88,7 +89,7 @@ NodePtr _find_avl_maximum(NodePtr x) noexcept
 }
 
 template <avl_node_base_pointer NodePtr>
-NodePtr _avl_node_increment(NodePtr x) noexcept
+constexpr NodePtr _avl_node_increment(NodePtr x) noexcept
 {
     if (x->right != nullptr)
     {
@@ -110,7 +111,7 @@ NodePtr _avl_node_increment(NodePtr x) noexcept
 }
 
 template <avl_node_base_pointer NodePtr>
-NodePtr _avl_node_decrement(NodePtr x) noexcept
+constexpr NodePtr _avl_node_decrement(NodePtr x) noexcept
 {
     if (x->parent->parent == x && x->right != nullptr && x->height > x->parent->height)
     {
@@ -133,7 +134,7 @@ NodePtr _avl_node_decrement(NodePtr x) noexcept
     }
 }
 
-inline void _avl_tree_rotate_left(avl_node_base* x, avl_node_base*& root) noexcept
+constexpr void _avl_tree_rotate_left(avl_node_base* x, avl_node_base*& root) noexcept
 {
     auto y = x->right;
 
@@ -152,7 +153,7 @@ inline void _avl_tree_rotate_left(avl_node_base* x, avl_node_base*& root) noexce
     x->parent = y;
 }
 
-inline void _avl_tree_rotate_right(avl_node_base* x, avl_node_base*& root) noexcept
+constexpr void _avl_tree_rotate_right(avl_node_base* x, avl_node_base*& root) noexcept
 {
     auto y = x->left;
 
@@ -224,34 +225,34 @@ protected:
     using _iterator_category = typename _type_traits::iterator_category;
 
 public:
-    avl_tree_iterator_base() noexcept : m_node{} {}
-    explicit avl_tree_iterator_base(_base_ptr node) : m_node(node) {}
+    constexpr avl_tree_iterator_base() noexcept : m_node{} {}
+    explicit constexpr avl_tree_iterator_base(_base_ptr node) : m_node(node) {}
 
-    _reference operator*() const noexcept { return *NodeTraits::value_ptr(m_node); }
-    _pointer operator->() const noexcept { return NodeTraits::value_ptr(m_node); }
-    _self& operator++() noexcept
+    constexpr _reference operator*() const noexcept { return *NodeTraits::value_ptr(m_node); }
+    constexpr _pointer operator->() const noexcept { return NodeTraits::value_ptr(m_node); }
+    constexpr _self& operator++() noexcept
     {
         m_node = _avl_node_increment(m_node);
         return *static_cast<_self*>(this);
     }
-    _self operator++(int) noexcept
+    constexpr _self operator++(int) noexcept
     {
         _self tmp = *static_cast<_self*>(this);
         m_node = _avl_node_increment(m_node);
         return tmp;
     }
-    _self& operator--() noexcept
+    constexpr _self& operator--() noexcept
     {
         m_node = _avl_node_decrement(m_node);
         return *static_cast<_self*>(this);
     }
-    _self operator--(int) noexcept
+    constexpr _self operator--(int) noexcept
     {
         _self tmp = *static_cast<_self*>(this);
         m_node = _avl_node_decrement(m_node);
         return tmp;
     }
-    friend bool operator==(const _self& x, const _self& y) noexcept { return x.m_node == y.m_node; }
+    friend constexpr bool operator==(const _self& x, const _self& y) noexcept { return x.m_node == y.m_node; }
 };
 
 template <typename NodeTraits>
@@ -274,12 +275,12 @@ public:
     using reference         = typename _type_traits::reference;
     using iterator_category = typename _type_traits::iterator_category;
 
-    avl_tree_iterator() noexcept : _base() {}
-    explicit avl_tree_iterator(_base_ptr node) : _base(node) {}
-    avl_tree_iterator(const avl_tree_iterator&) = default;
-    avl_tree_iterator(avl_tree_iterator&&) = default;
-    avl_tree_iterator& operator=(const avl_tree_iterator&) = default;
-    avl_tree_iterator& operator=(avl_tree_iterator&&) = default;
+    constexpr avl_tree_iterator() noexcept : _base() {}
+    explicit constexpr avl_tree_iterator(_base_ptr node) : _base(node) {}
+    constexpr avl_tree_iterator(const avl_tree_iterator&) = default;
+    constexpr avl_tree_iterator(avl_tree_iterator&&) = default;
+    constexpr avl_tree_iterator& operator=(const avl_tree_iterator&) = default;
+    constexpr avl_tree_iterator& operator=(avl_tree_iterator&&) = default;
 };
 
 template <typename NodeTraits>
@@ -287,7 +288,7 @@ class avl_tree_const_iterator final : public avl_tree_iterator_base<NodeTraits, 
 {
 private:
     template <typename _Traits>
-    friend typename _Traits::const_base_ptr _get_avl_iterator_ptr(const avl_tree_const_iterator<_Traits>&) noexcept;
+    friend constexpr typename _Traits::const_base_ptr _get_avl_iterator_ptr(const avl_tree_const_iterator<_Traits>&) noexcept;
 
     using _self     = avl_tree_const_iterator<NodeTraits>;
     using _base     = avl_tree_iterator_base<NodeTraits, _self>;
@@ -303,17 +304,17 @@ public:
     using reference         = typename _type_traits::reference;
     using iterator_category = typename _type_traits::iterator_category;
 
-    avl_tree_const_iterator() noexcept : _base() {}
-    explicit avl_tree_const_iterator(_base_ptr node) noexcept : _base(node) {}
-    avl_tree_const_iterator(const avl_tree_iterator<NodeTraits>& it) noexcept : _base(it.m_node) {}
-    avl_tree_const_iterator(const avl_tree_const_iterator&) = default;
-    avl_tree_const_iterator(avl_tree_const_iterator&&) = default;
-    avl_tree_const_iterator& operator=(const avl_tree_const_iterator&) = default;
-    avl_tree_const_iterator& operator=(avl_tree_const_iterator&&) = default;
+    constexpr avl_tree_const_iterator() noexcept : _base() {}
+    explicit constexpr avl_tree_const_iterator(_base_ptr node) noexcept : _base(node) {}
+    constexpr avl_tree_const_iterator(const avl_tree_iterator<NodeTraits>& it) noexcept : _base(it.m_node) {}
+    constexpr avl_tree_const_iterator(const avl_tree_const_iterator&) = default;
+    constexpr avl_tree_const_iterator(avl_tree_const_iterator&&) = default;
+    constexpr avl_tree_const_iterator& operator=(const avl_tree_const_iterator&) = default;
+    constexpr avl_tree_const_iterator& operator=(avl_tree_const_iterator&&) = default;
 };
 
 template <typename _Traits>
-typename _Traits::const_base_ptr _get_avl_iterator_ptr(const avl_tree_const_iterator<_Traits>& iter) noexcept
+constexpr typename _Traits::const_base_ptr _get_avl_iterator_ptr(const avl_tree_const_iterator<_Traits>& iter) noexcept
 {
     return iter.m_node;
 }
@@ -352,9 +353,16 @@ public:
     avl_header_node m_header;
     [[no_unique_address]] key_compare m_compare;
 
+    constexpr avl_tree() = default;
+    constexpr ~avl_tree() = default;
+    avl_tree(const avl_tree&) = delete;
+    avl_tree& operator=(const avl_tree&) = delete;
+    constexpr avl_tree(avl_tree&&) = default;
+    constexpr avl_tree& operator=(avl_tree&&) = default;
+
     template <typename K>
         requires _comparable_param<key_compare, key_type, K>
-    std::pair<_base_ptr, _insert_unique_pos_res_second> get_insert_unique_pos(const K& key) noexcept(is_bound_noexcept_v<K>)
+    constexpr std::pair<_base_ptr, _insert_unique_pos_res_second> get_insert_unique_pos(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         using enum _insert_unique_pos_res_second;
 
@@ -386,7 +394,7 @@ public:
         return std::make_pair(parent, insert_res);
     }
 
-    _base_ptr insert_node(_base_ptr parent, bool insert_left, _base_ptr node) noexcept
+    constexpr _base_ptr insert_node(_base_ptr parent, bool insert_left, _base_ptr node) noexcept
     {
         m_header.height++;
         node->parent = parent;
@@ -418,7 +426,7 @@ public:
         return node;
     }
 
-    _base_ptr erase_node(_const_base_ptr _node) noexcept
+    constexpr _base_ptr erase_node(_const_base_ptr _node) noexcept
     {
         _base_ptr node = const_cast<_base_ptr>(_node);
         _base_ptr rebalance_node;
@@ -535,7 +543,7 @@ public:
 
     template <typename K>
         requires _comparable_param<key_compare, key_type, K>
-    _const_base_ptr lower_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
+    constexpr _const_base_ptr lower_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
         _const_base_ptr x = m_header.parent;
         _const_base_ptr y = end();
@@ -556,14 +564,14 @@ public:
 
     template <typename K>
         requires _comparable_param<key_compare, key_type, K>
-    _base_ptr lower_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
+    constexpr _base_ptr lower_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         return const_cast<_base_ptr>(std::as_const(*this).lower_bound(key));
     }
 
     template <typename K>
         requires _comparable_param<key_compare, key_type, K>
-    _const_base_ptr upper_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
+    constexpr _const_base_ptr upper_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
         _const_base_ptr x = m_header.parent;
         _const_base_ptr y = end();
@@ -584,14 +592,14 @@ public:
 
     template <typename K>
         requires _comparable_param<key_compare, key_type, K>
-    _base_ptr upper_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
+    constexpr _base_ptr upper_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         return const_cast<_base_ptr>(std::as_const(*this).upper_bound(key));
     }
 
     template <typename K>
         requires _comparable_param<key_compare, key_type, K>
-    _const_base_ptr find(const K& key) const noexcept(is_bound_noexcept_v<K>)
+    constexpr _const_base_ptr find(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
         auto res = lower_bound(key);
         if (res != end() && !m_compare(key, _node_traits::get_key(res)))
@@ -601,29 +609,29 @@ public:
 
     template <typename K>
         requires _comparable_param<key_compare, key_type, K>
-    _base_ptr find(const K& key) noexcept(is_bound_noexcept_v<K>)
+    constexpr _base_ptr find(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         return const_cast<_base_ptr>(std::as_const(*this).find(key));
     }
 
     template <typename K>
         requires _comparable_param<key_compare, key_type, K>
-    bool contains(const K& key) const noexcept(is_bound_noexcept_v<K>)
+    constexpr bool contains(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
         auto res = lower_bound(key);
         return (res != end() && !m_compare(key, _node_traits::get_key(res)));
     }
 
-    _base_ptr       begin() noexcept       { return m_header.left; }
-    _const_base_ptr begin() const noexcept { return m_header.left; }
-    _base_ptr       end()   noexcept       { return std::addressof(m_header); }
-    _const_base_ptr end()   const noexcept { return std::addressof(m_header); }
+    constexpr _base_ptr       begin() noexcept       { return m_header.left; }
+    constexpr _const_base_ptr begin() const noexcept { return m_header.left; }
+    constexpr _base_ptr       end()   noexcept       { return std::addressof(m_header); }
+    constexpr _const_base_ptr end()   const noexcept { return std::addressof(m_header); }
 
-    bool empty() const noexcept { return m_header.height == 0; }
-    size_type size() const noexcept { return m_header.height; }
+    constexpr bool empty() const noexcept { return m_header.height == 0; }
+    constexpr size_type size() const noexcept { return m_header.height; }
 
 private:
-    void rebalence(_base_ptr node) noexcept
+    constexpr void rebalence(_base_ptr node) noexcept
     {
         using signed_size = std::make_signed_t<std::size_t>;
 

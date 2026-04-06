@@ -69,7 +69,8 @@ TEST_CASE("avl_set")
     for (auto& d : short_find_data)
         d = distrib(rand);
 
-    bench.title("set 100 data");
+    bench.minEpochIterations(65536)
+         .title("set 100 data");
     bench.run("toy::avl_set -- insert", [&short_data, &toy_set]() -> void
     {
         for (int d : short_data)

@@ -36,10 +36,10 @@ struct container_node : public _node_helper<0, NodeBase...>
 {
     alignas(Val) std::array<std::byte, sizeof(Val)> value;
 
-    void* value_addr() noexcept { return static_cast<void*>(value.data()); }
-    const void* value_addr() const noexcept { return static_cast<const void*>(value.data()); }
-    Val* value_ptr() noexcept { return static_cast<Val*>(value_addr()); }
-    const Val* value_ptr() const noexcept { return static_cast<const Val*>(value_addr()); }
+    constexpr void* value_addr() noexcept { return static_cast<void*>(value.data()); }
+    constexpr const void* value_addr() const noexcept { return static_cast<const void*>(value.data()); }
+    constexpr Val* value_ptr() noexcept { return static_cast<Val*>(value_addr()); }
+    constexpr const Val* value_ptr() const noexcept { return static_cast<const Val*>(value_addr()); }
 };
 
 } // namespace toy::detail
