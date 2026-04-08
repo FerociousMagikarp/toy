@@ -269,8 +269,11 @@ TEST_CASE("avl_tree")
         auto pos = tree.lower_bound(val);
         auto helper_iter = helper_set.lower_bound(val);
         CHECK((pos != tree.end()) == (helper_iter != helper_set.end()));
-        erase_avl_node_lowwer_bound(tree, val);
-        helper_set.erase(helper_iter);
+        if (pos != tree.end())
+        {
+            erase_avl_node_lowwer_bound(tree, val);
+            helper_set.erase(helper_iter);
+        }
         CHECK(check_avl_tree_valid(tree));
         CHECK(tree.size() == helper_set.size());
         CHECK(*_test_avl_iterator(tree.begin()) == *helper_set.begin());
