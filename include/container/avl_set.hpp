@@ -62,7 +62,7 @@ public:
 
     constexpr bool      empty()    const noexcept { return m_avl_tree.empty(); }
     constexpr size_type size()     const noexcept { return m_avl_tree.size(); }
-    constexpr size_type max_size() const noexcept { return std::allocator_traits<allocator_type>::max_size(); }
+    constexpr size_type max_size() const noexcept { return std::allocator_traits<allocator_type>::max_size(get_allocator()); }
 
     constexpr void clear() noexcept
     {
@@ -100,7 +100,7 @@ public:
     }
 
     template <typename K> requires comparable_param<key_compare, key_type, K>
-    constexpr bool count(const K& x) const noexcept(noexcept(m_avl_tree.contains(x))) { return m_avl_tree.contains(x) ? 1 : 0; }
+    constexpr size_type count(const K& x) const noexcept(noexcept(m_avl_tree.contains(x))) { return m_avl_tree.contains(x) ? 1 : 0; }
     template <typename K> requires comparable_param<key_compare, key_type, K>
     constexpr iterator find(const K& x) noexcept(noexcept(m_avl_tree.find(x))) { return iterator(m_avl_tree.find(x)); }
     template <typename K> requires comparable_param<key_compare, key_type, K>

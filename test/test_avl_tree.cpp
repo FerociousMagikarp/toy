@@ -5,6 +5,7 @@
 #include "container/detail/node_allocator.hpp"
 #include <iostream>
 #include <random>
+#include <set>
 
 using namespace toy;
 
@@ -91,7 +92,7 @@ std::pair<_test_avl_iterator, bool> insert_avl_node(_test_avl_tree_t& tree, Arg&
     return std::make_pair(_test_avl_iterator{res}, true);
 }
 
-_test_avl_iterator erase_avl_node_lowwer_bound(_test_avl_tree_t& tree, int key)
+static _test_avl_iterator erase_avl_node_lowwer_bound(_test_avl_tree_t& tree, int key)
 {
     auto pos = tree.lower_bound(key);
     if (pos == tree.end())
@@ -220,8 +221,13 @@ TEST_CASE("avl_tree")
     CHECK(check_avl_tree_valid(tree));
     CHECK(tree.empty());
 
+    std::set<int> helper_set;
+
     for (int val = 0; val < 19; val++)
+    {
         insert_avl_node(tree, val);
+        helper_set.insert(val);
+    }
 
     erase_avl_node_lowwer_bound(tree, 0);
     erase_avl_node_lowwer_bound(tree, 1);
@@ -229,12 +235,16 @@ TEST_CASE("avl_tree")
     erase_avl_node_lowwer_bound(tree, 5);
     erase_avl_node_lowwer_bound(tree, 3);
     CHECK(check_avl_tree_valid(tree));
+    helper_set.erase(helper_set.lower_bound(0));
+    helper_set.erase(helper_set.lower_bound(1));
+    helper_set.erase(helper_set.lower_bound(11));
+    helper_set.erase(helper_set.lower_bound(5));
+    helper_set.erase(helper_set.lower_bound(3));
 
     std::mt19937 rand;
     rand.seed(42);
     std::uniform_int_distribution<int> distrib(0, 1000);
 
-    std::size_t test_size = tree.size();
     int front_val = *_test_avl_iterator(tree.begin());
     CHECK(front_val == 2);
     int back_val = *--_test_avl_iterator(tree.end());
@@ -243,15 +253,13 @@ TEST_CASE("avl_tree")
     for (int i = 0; i < 500; i++)
     {
         auto val = distrib(rand);
-        if (!tree.contains(val))
-            test_size++;
-        if (val < front_val)
-            front_val = val;
-        if (val > back_val)
-            back_val = val;
+        CHECK(tree.contains(val) == helper_set.contains(val));
         insert_avl_node(tree, val);
+        helper_set.insert(val);
+        front_val = *helper_set.begin();
+        back_val = *--helper_set.end();
         CHECK(check_avl_tree_valid(tree));
-        CHECK(tree.size() == test_size);
+        CHECK(tree.size() == helper_set.size());
         CHECK(*_test_avl_iterator(tree.begin()) == front_val);
         CHECK(*--_test_avl_iterator(tree.end()) == back_val);
     }
@@ -259,19 +267,26 @@ TEST_CASE("avl_tree")
     {
         auto val = distrib(rand);
         auto pos = tree.lower_bound(val);
-        if (pos != tree.end())
-        {
-            int pos_val = *_test_avl_iterator(pos);
-            if (pos_val < front_val)
-                front_val = pos_val;
-            if (pos_val > back_val)
-                back_val = pos_val;
-            test_size--;
-        }
+        auto helper_iter = helper_set.lower_bound(val);
+        CHECK((pos != tree.end()) == (helper_iter != helper_set.end()));
         erase_avl_node_lowwer_bound(tree, val);
+        helper_set.erase(helper_iter);
         CHECK(check_avl_tree_valid(tree));
-        CHECK(tree.size() == test_size);
-        CHECK(*_test_avl_iterator(tree.begin()) == front_val);
-        CHECK(*--_test_avl_iterator(tree.end()) == back_val);
+        CHECK(tree.size() == helper_set.size());
+        CHECK(*_test_avl_iterator(tree.begin()) == *helper_set.begin());
+        CHECK(*--_test_avl_iterator(tree.end()) == *--helper_set.end());
     }
+    front_val = *helper_set.begin();
+    erase_avl_node_lowwer_bound(tree, front_val);
+    helper_set.erase(front_val);
+    CHECK(check_avl_tree_valid(tree));
+    CHECK(tree.size() == helper_set.size());
+    CHECK(*_test_avl_iterator(tree.begin()) == *helper_set.begin());
+    CHECK(*--_test_avl_iterator(tree.end()) == *--helper_set.end());
+    back_val = *--helper_set.end();
+    erase_avl_node_lowwer_bound(tree, back_val);
+    helper_set.erase(back_val);
+    CHECK(tree.size() == helper_set.size());
+    CHECK(*_test_avl_iterator(tree.begin()) == *helper_set.begin());
+    CHECK(*--_test_avl_iterator(tree.end()) == *--helper_set.end());
 }
