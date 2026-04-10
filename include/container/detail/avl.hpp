@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <iterator>
 #include <utility>
+#include <concepts>
 
 namespace toy::detail
 {
@@ -319,27 +320,20 @@ constexpr typename _Traits::const_base_ptr _get_avl_iterator_ptr(const avl_tree_
     return iter.m_node;
 }
 
-template <typename Compare, typename Key, typename K>
-concept _comparable_param = requires(const Compare& compare, const Key& origin_key, const K& key) {
-    { compare(origin_key, key) } -> std::convertible_to<bool>;
-    { compare(key, origin_key) } -> std::convertible_to<bool>;
-};
-
 enum class _insert_unique_pos_res_second
 {
     none, left, right,
 };
 
-template <typename Key, typename Val, typename NodeTraits, typename Compare>
+template <typename Key, typename Val, typename NodeTraits, auto Compare>
+    requires std::strict_weak_order<decltype(Compare), Key, Key>
 class avl_tree
 {
 public:
-    static_assert(std::is_invocable_v<const Compare&, const Key&, const Key&>, "comparison object must be invocable as const");
-
     using key_type    = Key;
     using value_type  = Val;
     using size_type   = std::size_t;
-    using key_compare = Compare;
+    using key_compare = decltype(Compare);
 
     using _node_traits    = NodeTraits;
     using _base_ptr       = avl_node_base*;
@@ -347,11 +341,10 @@ public:
 
     template <typename K>
     constexpr static bool is_bound_noexcept_v = noexcept(_node_traits::get_key(std::declval<_base_ptr>())) &&
-                                                noexcept(std::declval<key_compare>()(std::declval<key_type>(), std::declval<K>())) &&
-                                                noexcept(std::declval<key_compare>()(std::declval<K>(), std::declval<key_type>()));
+                                                noexcept(Compare(std::declval<key_type>(), std::declval<K>())) &&
+                                                noexcept(Compare(std::declval<K>(), std::declval<key_type>()));
 
     avl_header_node m_header;
-    [[no_unique_address]] key_compare m_compare;
 
     constexpr avl_tree() = default;
     constexpr ~avl_tree() = default;
@@ -361,7 +354,7 @@ public:
     constexpr avl_tree& operator=(avl_tree&&) = default;
 
     template <typename K>
-        requires _comparable_param<key_compare, key_type, K>
+        requires std::strict_weak_order<key_compare, key_type, K>
     constexpr std::pair<_base_ptr, _insert_unique_pos_res_second> get_insert_unique_pos(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         using enum _insert_unique_pos_res_second;
@@ -373,7 +366,7 @@ public:
         while (pos != nullptr)
         {
             parent = pos;
-            insert_res = m_compare(key, _node_traits::get_key(pos)) ? left : right;
+            insert_res = Compare(key, _node_traits::get_key(pos)) ? left : right;
             pos = insert_res == left ? pos->left : pos->right;
         }
 
@@ -382,11 +375,11 @@ public:
             if (parent != m_header.left)
             {
                 auto dec_node = _avl_node_decrement(parent);
-                if (!m_compare(_node_traits::get_key(dec_node), key))
+                if (!Compare(_node_traits::get_key(dec_node), key))
                     return std::make_pair(dec_node, none);
             }
         }
-        else if (!m_compare(_node_traits::get_key(parent), key))
+        else if (!Compare(_node_traits::get_key(parent), key))
         {
             return std::make_pair(parent, none);
         }
@@ -542,84 +535,86 @@ public:
     }
 
     template <typename K>
-        requires _comparable_param<key_compare, key_type, K>
+        requires std::strict_weak_order<key_compare, key_type, K>
     constexpr _const_base_ptr lower_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
         _const_base_ptr x = m_header.parent;
         _const_base_ptr y = end();
         while (x != nullptr)
         {
-            if (!m_compare(_node_traits::get_key(x), key))
-            {
-                y = x;
-                x = x->left;
-            }
-            else
-            {
-                x = x->right;
-            }
+            bool go_left = !Compare(_node_traits::get_key(x), key);
+            y = go_left ? x : y;
+            _const_base_ptr x_children[2] = {x->right, x->left};
+            x = x_children[go_left];
         }
         return y;
     }
 
     template <typename K>
-        requires _comparable_param<key_compare, key_type, K>
+        requires std::strict_weak_order<key_compare, key_type, K>
     constexpr _base_ptr lower_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         return const_cast<_base_ptr>(std::as_const(*this).lower_bound(key));
     }
 
     template <typename K>
-        requires _comparable_param<key_compare, key_type, K>
+        requires std::strict_weak_order<key_compare, key_type, K>
     constexpr _const_base_ptr upper_bound(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
         _const_base_ptr x = m_header.parent;
         _const_base_ptr y = end();
         while (x != nullptr)
         {
-            if (m_compare(key, _node_traits::get_key(x)))
-            {
-                y = x;
-                x = x->left;
-            }
-            else
-            {
-                x = x->right;
-            }
+            bool go_left = Compare(key, _node_traits::get_key(x));
+            y = go_left ? x : y;
+            _const_base_ptr x_children[2] = {x->right, x->left};
+            x = x_children[go_left];
         }
         return y;
     }
 
     template <typename K>
-        requires _comparable_param<key_compare, key_type, K>
+        requires std::strict_weak_order<key_compare, key_type, K>
     constexpr _base_ptr upper_bound(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         return const_cast<_base_ptr>(std::as_const(*this).upper_bound(key));
     }
 
     template <typename K>
-        requires _comparable_param<key_compare, key_type, K>
+        requires std::strict_weak_order<key_compare, key_type, K>
     constexpr _const_base_ptr find(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
-        auto res = lower_bound(key);
-        if (res != end() && !m_compare(key, _node_traits::get_key(res)))
-            return res;
+        _const_base_ptr x = m_header.parent;
+        while (x != nullptr) {
+            bool go_left = Compare(key, _node_traits::get_key(x));
+            if (!go_left && !Compare(_node_traits::get_key(x), key))
+                return x;
+            _const_base_ptr children[2] = {x->right, x->left};
+            x = children[go_left];
+        }
         return end();
     }
 
     template <typename K>
-        requires _comparable_param<key_compare, key_type, K>
+        requires std::strict_weak_order<key_compare, key_type, K>
     constexpr _base_ptr find(const K& key) noexcept(is_bound_noexcept_v<K>)
     {
         return const_cast<_base_ptr>(std::as_const(*this).find(key));
     }
 
     template <typename K>
-        requires _comparable_param<key_compare, key_type, K>
+        requires std::strict_weak_order<key_compare, key_type, K>
     constexpr bool contains(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
-        auto res = lower_bound(key);
-        return (res != end() && !m_compare(key, _node_traits::get_key(res)));
+        _const_base_ptr x = m_header.parent;
+        while (x != nullptr) {
+            bool go_left = Compare(key, _node_traits::get_key(x));
+            if (!go_left && !Compare(_node_traits::get_key(x), key))
+                return true;
+            _const_base_ptr children[2] = {x->right, x->left};
+            x = children[go_left];
+        }
+        return false;
     }
 
     constexpr _base_ptr       begin() noexcept       { return m_header.left; }

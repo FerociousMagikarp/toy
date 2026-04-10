@@ -9,11 +9,7 @@
 
 namespace toy
 {
-
-template <typename Compare, typename Key, typename K>
-concept comparable_param = detail::_comparable_param<Compare, Key, K>;
-
-template <typename Key, typename Compare = std::less<Key>, typename Allocator = std::allocator<Key>>
+template <typename Key, auto Compare = std::less<Key>{}, typename Allocator = std::allocator<Key>>
 class avl_set
 {
 public:
@@ -21,8 +17,8 @@ public:
     using value_type      = Key;
     using size_type       = std::size_t;
     using difference_type = std::ptrdiff_t;
-    using key_compare     = Compare;
-    using value_compare   = Compare;
+    using key_compare     = decltype(Compare);
+    using value_compare   = decltype(Compare);
     using allocator_type  = Allocator;
     using reference       = value_type&;
     using const_reference = const value_type&;
@@ -33,7 +29,7 @@ private:
     using _avl_node_type   = detail::container_node<Key, detail::avl_node_base>;
     using _avl_node_traits = detail::node_traits<_avl_node_type, std::identity{}, 0>;
 
-    detail::avl_tree<key_type, key_type, _avl_node_traits, key_compare> m_avl_tree;
+    detail::avl_tree<key_type, key_type, _avl_node_traits, Compare> m_avl_tree;
     [[no_unique_address]] detail::node_allocator<value_type, _avl_node_type, allocator_type> m_node_alloc;
 
 public:
@@ -89,7 +85,7 @@ public:
         return iterator(res);
     }
 
-    template <typename K> requires comparable_param<key_compare, key_type, K>
+    template <typename K> requires std::strict_weak_order<key_compare, key_type, K>
     constexpr size_type erase(K&& x) noexcept(noexcept(m_avl_tree.find(x)))
     {
         auto pos = m_avl_tree.find(x);
@@ -99,21 +95,21 @@ public:
         return 1;
     }
 
-    template <typename K> requires comparable_param<key_compare, key_type, K>
+    template <typename K> requires std::strict_weak_order<key_compare, key_type, K>
     constexpr size_type count(const K& x) const noexcept(noexcept(m_avl_tree.contains(x))) { return m_avl_tree.contains(x) ? 1 : 0; }
-    template <typename K> requires comparable_param<key_compare, key_type, K>
+    template <typename K> requires std::strict_weak_order<key_compare, key_type, K>
     constexpr iterator find(const K& x) noexcept(noexcept(m_avl_tree.find(x))) { return iterator(m_avl_tree.find(x)); }
-    template <typename K> requires comparable_param<key_compare, key_type, K>
+    template <typename K> requires std::strict_weak_order<key_compare, key_type, K>
     constexpr const_iterator find(const K& x) const noexcept(noexcept(m_avl_tree.find(x))) { return const_iterator(m_avl_tree.find(x)); }
-    template <typename K> requires comparable_param<key_compare, key_type, K>
+    template <typename K> requires std::strict_weak_order<key_compare, key_type, K>
     constexpr bool contains(const K& x) const noexcept(noexcept(m_avl_tree.contains(x))) { return m_avl_tree.contains(x); }
-    template <typename K> requires comparable_param<key_compare, key_type, K>
+    template <typename K> requires std::strict_weak_order<key_compare, key_type, K>
     constexpr iterator lower_bound(const K& x) noexcept(noexcept(m_avl_tree.lower_bound(x))) { return iterator(m_avl_tree.lower_bound(x)); }
-    template <typename K> requires comparable_param<key_compare, key_type, K>
+    template <typename K> requires std::strict_weak_order<key_compare, key_type, K>
     constexpr const_iterator lower_bound(const K& x) const noexcept(noexcept(m_avl_tree.lower_bound(x))) { return const_iterator(m_avl_tree.lower_bound(x)); }
-    template <typename K> requires comparable_param<key_compare, key_type, K>
+    template <typename K> requires std::strict_weak_order<key_compare, key_type, K>
     constexpr iterator upper_bound(const K& x) noexcept(noexcept(m_avl_tree.upper_bound(x))) { return iterator(m_avl_tree.upper_bound(x)); }
-    template <typename K> requires comparable_param<key_compare, key_type, K>
+    template <typename K> requires std::strict_weak_order<key_compare, key_type, K>
     constexpr const_iterator upper_bound(const K& x) const noexcept(noexcept(m_avl_tree.upper_bound(x))) { return const_iterator(m_avl_tree.upper_bound(x)); }
 };
 

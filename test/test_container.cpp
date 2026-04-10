@@ -40,7 +40,7 @@ public:
 
 TEST_CASE("avl_set")
 {
-    using set_t = avl_set<int, std::less<int>, TestAllocator<int>>;
+    using set_t = avl_set<int, std::less<int>{}, TestAllocator<int>>;
     set_t test_set;
 
     CHECK(test_set.empty());

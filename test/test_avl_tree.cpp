@@ -11,7 +11,7 @@ using namespace toy;
 
 using _test_node = detail::container_node<int, detail::avl_node_base>;
 using _test_avl_node_traits = detail::node_traits<_test_node, std::identity{}, 0>;
-using _test_avl_tree_t = detail::avl_tree<int, int, _test_avl_node_traits, std::less<int>>;
+using _test_avl_tree_t = detail::avl_tree<int, int, _test_avl_node_traits, std::less<int>{}>;
 using _test_node_alloc = detail::node_allocator<int, _test_node>;
 using _test_avl_iterator = detail::avl_tree_iterator<_test_avl_node_traits>;
 
