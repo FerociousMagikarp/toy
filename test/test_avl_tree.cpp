@@ -263,6 +263,24 @@ TEST_CASE("avl_tree")
         CHECK(*_test_avl_iterator(tree.begin()) == front_val);
         CHECK(*--_test_avl_iterator(tree.end()) == back_val);
     }
+    for (int i = 0; i < 500; i++)
+    {
+        auto val = distrib(rand);
+        CHECK(tree.contains(val) == helper_set.contains(val));
+        static auto check_equal = [&tree, &helper_set](_test_avl_tree_t::_base_ptr avl_ptr, std::set<int>::iterator helper_iter) -> void
+        {
+            bool toy_end = avl_ptr == tree.end();
+            bool helper_end = helper_iter == helper_set.end();
+            
+            if (!toy_end && !helper_end)
+                CHECK(*_test_avl_iterator(avl_ptr) == *helper_iter);
+            else
+                CHECK(toy_end == helper_end);
+        };
+        check_equal(tree.find(val), helper_set.find(val));
+        check_equal(tree.lower_bound(val), helper_set.lower_bound(val));
+        check_equal(tree.upper_bound(val), helper_set.upper_bound(val));
+    }
     for (int i = 0; i < 300; i++)
     {
         auto val = distrib(rand);
