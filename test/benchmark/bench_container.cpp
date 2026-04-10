@@ -50,6 +50,18 @@ TEST_CASE("avl_set")
             ankerl::nanobench::doNotOptimizeAway(std_set.find(d));
     });
 
+    bench.run("toy::avl_set -- lower_bound", [&find_data, &toy_set]() -> void
+    {
+        for (int d : find_data)
+            ankerl::nanobench::doNotOptimizeAway(toy_set.lower_bound(d));
+    });
+
+    bench.run("std::set -- lower_bound", [&find_data, &std_set]() -> void
+    {
+        for (int d : find_data)
+            ankerl::nanobench::doNotOptimizeAway(std_set.lower_bound(d));
+    });
+
     bench.run("toy::avl_set -- erase", [&data, &toy_set]() -> void
     {
         for (int d : data)
@@ -93,6 +105,18 @@ TEST_CASE("avl_set")
     {
         for (int d : short_find_data)
             ankerl::nanobench::doNotOptimizeAway(std_set.find(d));
+    });
+
+    bench.run("toy::avl_set -- lower_bound", [&short_find_data, &toy_set]() -> void
+    {
+        for (int d : short_find_data)
+            ankerl::nanobench::doNotOptimizeAway(toy_set.lower_bound(d));
+    });
+
+    bench.run("std::set -- lower_bound", [&short_find_data, &std_set]() -> void
+    {
+        for (int d : short_find_data)
+            ankerl::nanobench::doNotOptimizeAway(std_set.lower_bound(d));
     });
 
     bench.run("toy::avl_set -- erase", [&short_data, &toy_set]() -> void

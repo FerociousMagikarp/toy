@@ -542,10 +542,15 @@ public:
         _const_base_ptr y = end();
         while (x != nullptr)
         {
-            bool go_left = !Compare(_node_traits::get_key(x), key);
-            y = go_left ? x : y;
-            _const_base_ptr x_children[2] = {x->right, x->left};
-            x = x_children[go_left];
+            if (!Compare(_node_traits::get_key(x), key))
+            {
+                y = x;
+                x = x->left;
+            }
+            else
+            {
+                x = x->right;
+            }
         }
         return y;
     }
@@ -565,10 +570,15 @@ public:
         _const_base_ptr y = end();
         while (x != nullptr)
         {
-            bool go_left = Compare(key, _node_traits::get_key(x));
-            y = go_left ? x : y;
-            _const_base_ptr x_children[2] = {x->right, x->left};
-            x = x_children[go_left];
+            if (Compare(key, _node_traits::get_key(x)))
+            {
+                y = x;
+                x = x->left;
+            }
+            else
+            {
+                x = x->right;
+            }
         }
         return y;
     }
@@ -584,14 +594,9 @@ public:
         requires std::strict_weak_order<key_compare, key_type, K>
     constexpr _const_base_ptr find(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
-        _const_base_ptr x = m_header.parent;
-        while (x != nullptr) {
-            bool go_left = Compare(key, _node_traits::get_key(x));
-            if (!go_left && !Compare(_node_traits::get_key(x), key))
-                return x;
-            _const_base_ptr children[2] = {x->right, x->left};
-            x = children[go_left];
-        }
+        auto res = lower_bound(key);
+        if (res != end() && !Compare(key, _node_traits::get_key(res)))
+            return res;
         return end();
     }
 
@@ -606,15 +611,8 @@ public:
         requires std::strict_weak_order<key_compare, key_type, K>
     constexpr bool contains(const K& key) const noexcept(is_bound_noexcept_v<K>)
     {
-        _const_base_ptr x = m_header.parent;
-        while (x != nullptr) {
-            bool go_left = Compare(key, _node_traits::get_key(x));
-            if (!go_left && !Compare(_node_traits::get_key(x), key))
-                return true;
-            _const_base_ptr children[2] = {x->right, x->left};
-            x = children[go_left];
-        }
-        return false;
+        auto res = lower_bound(key);
+        return (res != end() && !Compare(key, _node_traits::get_key(res)));
     }
 
     constexpr _base_ptr       begin() noexcept       { return m_header.left; }
